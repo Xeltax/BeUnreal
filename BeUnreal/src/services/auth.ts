@@ -20,6 +20,7 @@ interface AuthResponse {
 
 export const register = async (userData: RegisterData): Promise<AuthResponse> => {
     const response = await api.post('/users/register', userData);
+    console.log(response);
     return response.data;
 };
 

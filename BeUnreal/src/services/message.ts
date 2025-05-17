@@ -1,8 +1,8 @@
 import api from './api';
 import { Socket, io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:3002';
-const API_URL = 'http://localhost:3002/api/messages';
+const SOCKET_URL = 'http://localhost:3001';
+const API_URL = 'http://localhost:3001/api/messages';
 
 let socket: Socket | null = null;
 

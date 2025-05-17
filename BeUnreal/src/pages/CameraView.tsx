@@ -198,7 +198,7 @@ const CameraView: React.FC = () => {
                                         <IonIcon icon={flash} color={flashMode === 'on' ? 'warning' : 'light'} />
                                     </IonButton>
                                     <IonButton onClick={() => setShowActionSheet(true)}>
-                                        <IonIcon icon={timer} color="light" />
+                                        <IonIcon title={timer.toString()} color="light" />
                                     </IonButton>
                                 </IonButtons>
                             </IonToolbar>
@@ -222,7 +222,7 @@ const CameraView: React.FC = () => {
                                             </IonButton>
                                         </IonCol>
                                         <IonCol size="6" className="ion-text-center">
-                                            <IonFabButton size="large" onClick={takePicture}>
+                                            <IonFabButton onClick={takePicture}>
                                                 <IonIcon icon={aperture} />
                                             </IonFabButton>
                                         </IonCol>

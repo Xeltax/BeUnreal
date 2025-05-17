@@ -12,6 +12,7 @@ const generateToken = (id: number): string => {
 
 // Créer un utilisateur
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
+    console.log("Registering user...");
     try {
         const { username, email, password } = req.body;
 

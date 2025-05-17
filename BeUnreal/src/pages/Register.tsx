@@ -53,6 +53,7 @@ const Register: React.FC = () => {
             // Rediriger vers la page de profil
             history.push('/profile');
         } catch (err: any) {
+            console.log(err);
             setError(err.response?.data?.message || 'Erreur lors de l\'inscription');
         } finally {
             setLoading(false);
