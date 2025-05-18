@@ -1,0 +1,31 @@
+services:
+  database:
+    image: postgres:latest
+    container_name: beunreal_database
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d beunreal" ]
+      interval: 5s
+      timeout: 30s
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: beunreal
+    ports:
+      - "5432:5432"
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API S3
+      - "9001:9001"  # Console Web UI
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123
+    volumes:
+      - minio-data:/data
+
+volumes:
+  minio-data:
