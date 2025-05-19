@@ -172,70 +172,70 @@ const CameraView: React.FC = () => {
         }
     };
 
+    // TODO OUBLIE PAS DE TOUT METTRE DANS <IonPage><IonContent>LE CONTENU ICI</IonContent></IonPage> SINON LA NAVIGATION DANS LE MENU SERA BROKEN
+
     return (
         <IonPage>
             <IonContent fullscreen>
                 {/* Vue de la caméra en direct */}
                 {!photo && !videoSource && (
-                    <>
-                        <div style={{ position: 'relative', height: '100%' }}>
-                            <video
-                                ref={videoRef}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                autoPlay
-                                playsInline
-                            />
+                    <div style={{ position: 'relative', height: '100%' }}>
+                        <video
+                            ref={videoRef}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            autoPlay
+                            playsInline
+                        />
 
-                            {/* Boutons supérieurs */}
-                            <IonToolbar color="clear" style={{ position: 'absolute', top: 0, width: '100%' }}>
-                                <IonButtons slot="start">
-                                    <IonButton onClick={() => history.goBack()}>
-                                        <IonIcon icon={close} color="light" />
-                                    </IonButton>
-                                </IonButtons>
-                                <IonButtons slot="end">
-                                    <IonButton onClick={() => setFlashMode(flashMode === 'on' ? 'off' : 'on')}>
-                                        <IonIcon icon={flash} color={flashMode === 'on' ? 'warning' : 'light'} />
-                                    </IonButton>
-                                    <IonButton onClick={() => setShowActionSheet(true)}>
-                                        <IonIcon title={timer.toString()} color="light" />
-                                    </IonButton>
-                                </IonButtons>
-                            </IonToolbar>
+                        {/* Boutons supérieurs */}
+                        <IonToolbar color="clear" style={{ position: 'absolute', top: 0, width: '100%' }}>
+                            <IonButtons slot="start">
+                                <IonButton onClick={() => history.goBack()}>
+                                    <IonIcon icon={close} color="light" />
+                                </IonButton>
+                            </IonButtons>
+                            <IonButtons slot="end">
+                                <IonButton onClick={() => setFlashMode(flashMode === 'on' ? 'off' : 'on')}>
+                                    <IonIcon icon={flash} color={flashMode === 'on' ? 'warning' : 'light'} />
+                                </IonButton>
+                                <IonButton onClick={() => setShowActionSheet(true)}>
+                                    <IonIcon title={timer.toString()} color="light" />
+                                </IonButton>
+                            </IonButtons>
+                        </IonToolbar>
 
-                            {/* Boutons inférieurs */}
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    bottom: '20px',
-                                    width: '100%',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                }}
-                            >
-                                <IonGrid>
-                                    <IonRow className="ion-align-items-center">
-                                        <IonCol size="3" className="ion-text-center">
-                                            <IonButton fill="clear" onClick={selectFromGallery}>
-                                                <IonIcon icon={images} color="light" size="large" />
-                                            </IonButton>
-                                        </IonCol>
-                                        <IonCol size="6" className="ion-text-center">
-                                            <IonFabButton onClick={takePicture}>
-                                                <IonIcon icon={aperture} />
-                                            </IonFabButton>
-                                        </IonCol>
-                                        <IonCol size="3" className="ion-text-center">
-                                            <IonButton fill="clear" onClick={switchCamera}>
-                                                <IonIcon icon={cameraReverse} color="light" size="large" />
-                                            </IonButton>
-                                        </IonCol>
-                                    </IonRow>
-                                </IonGrid>
-                            </div>
+                        {/* Boutons inférieurs */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                bottom: '20px',
+                                width: '100%',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <IonGrid>
+                                <IonRow className="ion-align-items-center">
+                                    <IonCol size="3" className="ion-text-center">
+                                        <IonButton fill="clear" onClick={selectFromGallery}>
+                                            <IonIcon icon={images} color="light" size="large" />
+                                        </IonButton>
+                                    </IonCol>
+                                    <IonCol size="6" className="ion-text-center">
+                                        <IonFabButton onClick={takePicture}>
+                                            <IonIcon icon={aperture} />
+                                        </IonFabButton>
+                                    </IonCol>
+                                    <IonCol size="3" className="ion-text-center">
+                                        <IonButton fill="clear" onClick={switchCamera}>
+                                            <IonIcon icon={cameraReverse} color="light" size="large" />
+                                        </IonButton>
+                                    </IonCol>
+                                </IonRow>
+                            </IonGrid>
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {/* Affichage de la photo prise */}
@@ -343,7 +343,7 @@ const CameraView: React.FC = () => {
                     isOpen={!!errorMessage}
                     onDidDismiss={() => setErrorMessage(null)}
                     header="Erreur"
-                    message={errorMessage || ''}
+                    message={errorMessage ?? ''}
                     buttons={['OK']}
                 />
             </IonContent>

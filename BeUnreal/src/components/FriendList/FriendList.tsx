@@ -1,33 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-    IonContent,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonList,
-    IonItem,
+    IonActionSheet,
     IonAvatar,
-    IonLabel,
     IonButton,
+    IonContent,
+    IonFab,
+    IonFabButton,
+    IonHeader,
     IonIcon,
-    IonSearchbar,
+    IonItem,
+    IonLabel,
+    IonList,
+    IonModal,
+    IonPage,
     IonRefresher,
     IonRefresherContent,
+    IonSearchbar,
     IonSkeletonText,
-    IonActionSheet,
+    IonTitle,
     IonToast,
-    IonModal,
-    IonFab,
-    IonFabButton
+    IonToolbar
 } from '@ionic/react';
 import {
-    personAddOutline,
-    ellipsisVertical,
     addOutline,
-    mailOutline,
-    trashOutline,
+    ellipsisVertical,
     logoX,
-    notificationsOutline
+    mailOutline,
+    notificationsOutline,
+    personAddOutline,
+    trashOutline
 } from 'ionicons/icons';
 import FriendService from '../../services/friend';
 import FriendSearch from '../FriendSearch/FriendSearch';
@@ -148,153 +149,157 @@ const FriendsList: React.FC = () => {
     });
 
     return (
-        <div className="friends-container">
-            <IonHeader>
-                <IonToolbar>
-                    <IonTitle>Mes Amis</IonTitle>
-                    <div className="ion-buttons ion-buttons-end">
-                        <IonButton onClick={() => setShowRequestsModal(true)}>
-                            <IonIcon icon={notificationsOutline} />
-                            {/* Badge pour les demandes en attente */}
-                        </IonButton>
-                        <IonButton onClick={() => setShowSearchModal(true)}>
-                            <IonIcon icon={personAddOutline} />
-                        </IonButton>
-                    </div>
-                </IonToolbar>
-                <IonToolbar>
-                    <IonSearchbar
-                        value={searchText}
-                        onIonChange={e => setSearchText(e.detail.value || '')}
-                        placeholder="Rechercher des amis"
-                        animated
-                        className="custom-searchbar"
-                    />
-                </IonToolbar>
-            </IonHeader>
-
-                <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-                    <IonRefresherContent></IonRefresherContent>
-                </IonRefresher>
-
-                {isLoading ? (
-                    <div className="skeleton-container">
-                        {[...Array(5)].map((_, i) => (
-                            <div className="skeleton-item" key={i}>
-                                <div className="skeleton-avatar">
-                                    <IonSkeletonText animated />
-                                </div>
-                                <div className="skeleton-text">
-                                    <IonSkeletonText animated style={{ width: '60%' }} />
-                                    <IonSkeletonText animated style={{ width: '80%' }} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <>
-                        {friends.length > 0 ? (
-                            <IonList className="friends-list">
-                                {friends.map((friend : Friend, index : number) => (
-                                    <IonItem key={index} className="friend-item">
-                                        <IonAvatar slot="start" className="friend-avatar">
-                                            <img src={`https://i.pravatar.cc/150?u=${friend.profilePicture}`} alt={`Ami ${friend.username}`} />
-                                        </IonAvatar>
-                                        <IonLabel>
-                                            <h2>Utilisateur {friend.username}</h2>
-                                            <p>Statut: En ligne</p>
-                                        </IonLabel>
-                                        <IonButton fill="clear" onClick={() => handleStartChat(friend)}>
-                                            <IonIcon icon={mailOutline} slot="icon-only" />
-                                        </IonButton>
-                                        <IonButton fill="clear" onClick={() => handleFriendAction(friend.id)}>
-                                            <IonIcon icon={ellipsisVertical} slot="icon-only" />
-                                        </IonButton>
-                                    </IonItem>
-                                ))}
-                            </IonList>
-                        ) : (
-                            <div className="no-results">
-                                <div className="no-results-icon">
-                                    <IonIcon icon={personAddOutline} />
-                                </div>
-                                <h3>Aucun ami trouvé</h3>
-                                <p>Commencez à ajouter des amis</p>
+        <IonPage>
+            <IonContent>
+                <div className="friends-container">
+                    <IonHeader>
+                        <IonToolbar>
+                            <IonTitle>Mes Amis</IonTitle>
+                            <div className="ion-buttons ion-buttons-end">
+                                <IonButton onClick={() => setShowRequestsModal(true)}>
+                                    <IonIcon icon={notificationsOutline} />
+                                    {/* Badge pour les demandes en attente */}
+                                </IonButton>
                                 <IonButton onClick={() => setShowSearchModal(true)}>
-                                    Rechercher des amis
+                                    <IonIcon icon={personAddOutline} />
                                 </IonButton>
                             </div>
+                        </IonToolbar>
+                        <IonToolbar>
+                            <IonSearchbar
+                                value={searchText}
+                                onIonChange={e => setSearchText(e.detail.value || '')}
+                                placeholder="Rechercher des amis"
+                                animated
+                                className="custom-searchbar"
+                            />
+                        </IonToolbar>
+                    </IonHeader>
+
+                    <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+                        <IonRefresherContent></IonRefresherContent>
+                    </IonRefresher>
+
+                    {isLoading ? (
+                        <div className="skeleton-container">
+                            {[...Array(5)].map((_, i) => (
+                                <div className="skeleton-item" key={i}>
+                                    <div className="skeleton-avatar">
+                                        <IonSkeletonText animated />
+                                    </div>
+                                    <div className="skeleton-text">
+                                        <IonSkeletonText animated style={{ width: '60%' }} />
+                                        <IonSkeletonText animated style={{ width: '80%' }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <>
+                            {friends.length > 0 ? (
+                                <IonList className="friends-list">
+                                    {friends.map((friend : Friend, index : number) => (
+                                        <IonItem key={index} className="friend-item">
+                                            <IonAvatar slot="start" className="friend-avatar">
+                                                <img src={`https://i.pravatar.cc/150?u=${friend.profilePicture}`} alt={`Ami ${friend.username}`} />
+                                            </IonAvatar>
+                                            <IonLabel>
+                                                <h2>Utilisateur {friend.username}</h2>
+                                                <p>Statut: En ligne</p>
+                                            </IonLabel>
+                                            <IonButton fill="clear" onClick={() => handleStartChat(friend)}>
+                                                <IonIcon icon={mailOutline} slot="icon-only" />
+                                            </IonButton>
+                                            <IonButton fill="clear" onClick={() => handleFriendAction(friend.id)}>
+                                                <IonIcon icon={ellipsisVertical} slot="icon-only" />
+                                            </IonButton>
+                                        </IonItem>
+                                    ))}
+                                </IonList>
+                            ) : (
+                                <div className="no-results">
+                                    <div className="no-results-icon">
+                                        <IonIcon icon={personAddOutline} />
+                                    </div>
+                                    <h3>Aucun ami trouvé</h3>
+                                    <p>Commencez à ajouter des amis</p>
+                                    <IonButton onClick={() => setShowSearchModal(true)}>
+                                        Rechercher des amis
+                                    </IonButton>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    <IonFab vertical="bottom" horizontal="end" slot="fixed">
+                        <IonFabButton color="primary" onClick={() => setShowSearchModal(true)}>
+                            <IonIcon icon={addOutline} />
+                        </IonFabButton>
+                    </IonFab>
+
+                    {/* Modals */}
+                    <IonModal isOpen={showSearchModal} onDidDismiss={() => setShowSearchModal(false)}>
+                        <FriendSearch onBack={() => setShowSearchModal(false)} />
+                    </IonModal>
+
+                    <IonModal isOpen={showRequestsModal} onDidDismiss={() => setShowRequestsModal(false)}>
+                        <FriendRequests onBack={() => setShowRequestsModal(false)} />
+                    </IonModal>
+
+                    <IonModal isOpen={showChatModal} onDidDismiss={() => setShowChatModal(false)}>
+                        {selectedConversation && (
+                            <ChatView
+                                conversationId={selectedConversation.id}
+                                userId={currentUserId}
+                                onBack={() => setShowChatModal(false)}
+                                conversationName={selectedConversation.name}
+                            />
                         )}
-                    </>
-                )}
+                    </IonModal>
 
-            <IonFab vertical="bottom" horizontal="end" slot="fixed">
-                <IonFabButton color="primary" onClick={() => setShowSearchModal(true)}>
-                    <IonIcon icon={addOutline} />
-                </IonFabButton>
-            </IonFab>
-
-            {/* Modals */}
-            <IonModal isOpen={showSearchModal} onDidDismiss={() => setShowSearchModal(false)}>
-                <FriendSearch onBack={() => setShowSearchModal(false)} />
-            </IonModal>
-
-            <IonModal isOpen={showRequestsModal} onDidDismiss={() => setShowRequestsModal(false)}>
-                <FriendRequests onBack={() => setShowRequestsModal(false)} />
-            </IonModal>
-
-            <IonModal isOpen={showChatModal} onDidDismiss={() => setShowChatModal(false)}>
-                {selectedConversation && (
-                    <ChatView
-                        conversationId={selectedConversation.id}
-                        userId={currentUserId}
-                        onBack={() => setShowChatModal(false)}
-                        conversationName={selectedConversation.name}
-                    />
-                )}
-            </IonModal>
-
-            {/* Action Sheet pour les actions sur un ami */}
-            <IonActionSheet
-                isOpen={showActionSheet}
-                onDidDismiss={() => setShowActionSheet(false)}
-                buttons={[
-                    {
-                        text: 'Envoyer un message',
-                        icon: mailOutline,
-                        handler: () => {
-                            if (selectedFriend) {
-                                handleStartChat(selectedFriend);
+                    {/* Action Sheet pour les actions sur un ami */}
+                    <IonActionSheet
+                        isOpen={showActionSheet}
+                        onDidDismiss={() => setShowActionSheet(false)}
+                        buttons={[
+                            {
+                                text: 'Envoyer un message',
+                                icon: mailOutline,
+                                handler: () => {
+                                    if (selectedFriend) {
+                                        handleStartChat(selectedFriend);
+                                    }
+                                }
+                            },
+                            {
+                                text: 'Supprimer de mes amis',
+                                role: 'destructive',
+                                icon: trashOutline,
+                                handler: handleRemoveFriend
+                            },
+                            {
+                                text: 'Bloquer cet utilisateur',
+                                role: 'destructive',
+                                icon: logoX,
+                                handler: handleBlockUser
+                            },
+                            {
+                                text: 'Annuler',
+                                role: 'cancel'
                             }
-                        }
-                    },
-                    {
-                        text: 'Supprimer de mes amis',
-                        role: 'destructive',
-                        icon: trashOutline,
-                        handler: handleRemoveFriend
-                    },
-                    {
-                        text: 'Bloquer cet utilisateur',
-                        role: 'destructive',
-                        icon: logoX,
-                        handler: handleBlockUser
-                    },
-                    {
-                        text: 'Annuler',
-                        role: 'cancel'
-                    }
-                ]}
-            />
+                        ]}
+                    />
 
-            <IonToast
-                isOpen={showToast}
-                onDidDismiss={() => setShowToast(false)}
-                message={toastMessage}
-                duration={2000}
-                position="bottom"
-            />
-        </div>
+                    <IonToast
+                        isOpen={showToast}
+                        onDidDismiss={() => setShowToast(false)}
+                        message={toastMessage}
+                        duration={2000}
+                        position="bottom"
+                    />
+                </div>
+            </IonContent>
+        </IonPage>
     );
 };
 

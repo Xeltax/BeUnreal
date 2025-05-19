@@ -1,21 +1,12 @@
 import React from 'react';
-import {
-    IonTabs,
-    IonTabBar,
-    IonTabButton,
-    IonIcon,
-    IonLabel,
-    IonRouterOutlet,
-} from '@ionic/react';
-import { IonReactRouter } from '@ionic/react-router';
-import { Route, Redirect } from 'react-router-dom';
-import {peopleOutline, cameraOutline, compassOutline, personOutline, mapOutline} from 'ionicons/icons';
-// import CameraView from './CameraView';
+import {IonIcon, IonLabel, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs,} from '@ionic/react';
+import {Redirect, Route} from 'react-router-dom';
+import {cameraOutline, compassOutline, mapOutline, peopleOutline, personOutline} from 'ionicons/icons';
 import ConversationList from './ConversationList';
 import DiscoverView from './DiscoverView';
 import FriendList from '../FriendList/FriendList';
 import Profile from './Profile';
-import { useAuth } from '../../contexts/AuthContext';
+import {useAuth} from '../../contexts/AuthContext';
 import '../../styles/MainTabs.css';
 import MapView from "../../pages/MapView";
 
@@ -27,53 +18,50 @@ const MainTabs: React.FC = () => {
     }
 
     return (
-        <IonReactRouter>
-            <IonTabs>
-                <IonRouterOutlet>
-                    <Route path="/tabs/conv" component={ConversationList} exact={true} />
-                    <Route path="/tabs/friends" component={FriendList} exact={true} />
-                    {/*<Route path="/tabs/camera" component={CameraView} exact={true} />*/}
-                    <Route path="/tabs/discover" component={DiscoverView} exact={true} />
-                    <Route path="/tabs/profile" component={Profile} exact={true} />
-                    <Route path="/tabs/map" component={MapView} exact={true}/>
-                    <Route exact path="/tabs" render={() => <Redirect to="/tabs/camera" />} />
-                </IonRouterOutlet>
+        <IonTabs>
+            <IonRouterOutlet>
+                <Route exact path="/tabs/conv" component={ConversationList} />
+                <Route exact path="/tabs/friends" component={FriendList} />
+                {/*<Route exact path="/tabs/camera" component={CameraView} /> */}
+                <Route exact path="/tabs/discover" component={DiscoverView} />
+                <Route exact path="/tabs/profile" component={Profile} />
+                <Route exact path="/tabs/map" component={MapView} />
+                <Route exact path="/tabs" render={() => <Redirect to="/tabs/camera" />} />
+            </IonRouterOutlet>
 
-                <IonTabBar slot="bottom" className="main-tab-bar">
-                    <IonTabButton tab="map" href="/tabs/map">
-                        <IonIcon icon={mapOutline} />
-                        <IonLabel>Carte</IonLabel>
-                    </IonTabButton>
+            <IonTabBar slot="bottom" className="main-tab-bar">
+                <IonTabButton tab="map" href="/tabs/map">
+                    <IonIcon icon={mapOutline} />
+                    <IonLabel>Carte</IonLabel>
+                </IonTabButton>
 
-                    <IonTabButton tab="conv" href="/tabs/conv">
-                        <IonIcon icon={peopleOutline} />
-                        <IonLabel>Conv</IonLabel>
-                    </IonTabButton>
+                <IonTabButton tab="conv" href="/tabs/conv">
+                    <IonIcon icon={peopleOutline} />
+                    <IonLabel>Conv</IonLabel>
+                </IonTabButton>
 
+                <IonTabButton tab="friends" href="/tabs/friends">
+                    <IonIcon icon={peopleOutline} />
+                    <IonLabel>Amis</IonLabel>
+                </IonTabButton>
 
-                    <IonTabButton tab="friends" href="/tabs/friends">
-                        <IonIcon icon={peopleOutline} />
-                        <IonLabel>Amis</IonLabel>
-                    </IonTabButton>
+                <IonTabButton tab="camera" href="/tabs/camera">
+                    <div className="camera-tab-button">
+                        <IonIcon icon={cameraOutline} />
+                    </div>
+                </IonTabButton>
 
-                    <IonTabButton tab="camera" href="/tabs/camera">
-                        <div className="camera-tab-button">
-                            <IonIcon icon={cameraOutline} />
-                        </div>
-                    </IonTabButton>
+                <IonTabButton tab="discover" href="/tabs/discover">
+                    <IonIcon icon={compassOutline} />
+                    <IonLabel>Découvrir</IonLabel>
+                </IonTabButton>
 
-                    <IonTabButton tab="discover" href="/tabs/discover">
-                        <IonIcon icon={compassOutline} />
-                        <IonLabel>Découvrir</IonLabel>
-                    </IonTabButton>
-
-                    <IonTabButton tab="profile" href="/tabs/profile">
-                        <IonIcon icon={personOutline} />
-                        <IonLabel>Profil</IonLabel>
-                    </IonTabButton>
-                </IonTabBar>
-            </IonTabs>
-        </IonReactRouter>
+                <IonTabButton tab="profile" href="/tabs/profile">
+                    <IonIcon icon={personOutline} />
+                    <IonLabel>Profil</IonLabel>
+                </IonTabButton>
+            </IonTabBar>
+        </IonTabs>
     );
 };
 

@@ -1,27 +1,26 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
-    IonContent,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonSearchbar,
-    IonGrid,
-    IonRow,
-    IonCol,
+    IonButton,
     IonCard,
-    IonCardHeader,
-    IonCardTitle,
     IonCardContent,
     IonChip,
-    IonLabel,
+    IonCol,
+    IonContent,
+    IonGrid,
+    IonHeader,
     IonIcon,
-    IonButton,
-    IonSegment,
-    IonSegmentButton,
+    IonLabel,
+    IonPage,
     IonRefresher,
     IonRefresherContent,
+    IonRow,
+    IonSearchbar,
+    IonSegment,
+    IonSegmentButton,
+    IonTitle,
+    IonToolbar,
 } from '@ionic/react';
-import { flameOutline, timeOutline, peopleOutline, heartOutline, chatbubbleOutline } from 'ionicons/icons';
+import {chatbubbleOutline, flameOutline, heartOutline, peopleOutline, timeOutline} from 'ionicons/icons';
 import '../../styles/DiscoverView.css';
 
 const trendingPosts = [
@@ -79,90 +78,94 @@ const DiscoverView: React.FC = () => {
     };
 
     return (
-        <div className="discover-container">
-            <IonHeader>
-                <IonToolbar>
-                    <IonTitle>Découvrir</IonTitle>
-                </IonToolbar>
-                <IonToolbar>
-                    <IonSearchbar
-                        value={searchText}
-                        onIonChange={e => setSearchText(e.detail.value || '')}
-                        placeholder="Rechercher du contenu"
-                    />
-                </IonToolbar>
-                <IonToolbar>
-                    {/*// @ts-ignore*/}
-                    <IonSegment value={segment} onIonChange={e => setSegment(e.detail.value || 'trending')}>
-                        <IonSegmentButton value="trending">
-                            <IonIcon icon={flameOutline} />
-                            <IonLabel>Tendances</IonLabel>
-                        </IonSegmentButton>
-                        <IonSegmentButton value="recent">
-                            <IonIcon icon={timeOutline} />
-                            <IonLabel>Récent</IonLabel>
-                        </IonSegmentButton>
-                        <IonSegmentButton value="following">
-                            <IonIcon icon={peopleOutline} />
-                            <IonLabel>Suivis</IonLabel>
-                        </IonSegmentButton>
-                    </IonSegment>
-                </IonToolbar>
-            </IonHeader>
+        <IonPage>
+            <IonContent>
+                <div className="discover-container">
+                    <IonHeader>
+                        <IonToolbar>
+                            <IonTitle>Découvrir</IonTitle>
+                        </IonToolbar>
+                        <IonToolbar>
+                            <IonSearchbar
+                                value={searchText}
+                                onIonChange={e => setSearchText(e.detail.value || '')}
+                                placeholder="Rechercher du contenu"
+                            />
+                        </IonToolbar>
+                        <IonToolbar>
+                            {/*// @ts-ignore*/}
+                            <IonSegment value={segment} onIonChange={e => setSegment(e.detail.value || 'trending')}>
+                                <IonSegmentButton value="trending">
+                                    <IonIcon icon={flameOutline} />
+                                    <IonLabel>Tendances</IonLabel>
+                                </IonSegmentButton>
+                                <IonSegmentButton value="recent">
+                                    <IonIcon icon={timeOutline} />
+                                    <IonLabel>Récent</IonLabel>
+                                </IonSegmentButton>
+                                <IonSegmentButton value="following">
+                                    <IonIcon icon={peopleOutline} />
+                                    <IonLabel>Suivis</IonLabel>
+                                </IonSegmentButton>
+                            </IonSegment>
+                        </IonToolbar>
+                    </IonHeader>
 
-            <IonContent className="discover-content">
-                <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-                    <IonRefresherContent></IonRefresherContent>
-                </IonRefresher>
+                    <IonContent className="discover-content">
+                        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+                            <IonRefresherContent></IonRefresherContent>
+                        </IonRefresher>
 
-                <IonGrid>
-                    <IonRow>
-                        {trendingPosts.map(post => (
-                            <IonCol size="12" key={post.id}>
-                                <IonCard className="post-card">
-                                    <div className="post-header">
-                                        <div className="user-info">
-                                            <img src={post.avatar} alt={post.username} className="user-avatar" />
-                                            <div className="username">{post.username}</div>
-                                        </div>
-                                    </div>
+                        <IonGrid>
+                            <IonRow>
+                                {trendingPosts.map(post => (
+                                    <IonCol size="12" key={post.id}>
+                                        <IonCard className="post-card">
+                                            <div className="post-header">
+                                                <div className="user-info">
+                                                    <img src={post.avatar} alt={post.username} className="user-avatar" />
+                                                    <div className="username">{post.username}</div>
+                                                </div>
+                                            </div>
 
-                                    <div className="post-image-container">
-                                        <img src={post.image} alt="" className="post-image" />
-                                    </div>
+                                            <div className="post-image-container">
+                                                <img src={post.image} alt="" className="post-image" />
+                                            </div>
 
-                                    <IonCardContent>
-                                        <div className="post-actions">
-                                            <IonButton fill="clear" className="action-button">
-                                                <IonIcon slot="icon-only" icon={heartOutline} />
-                                            </IonButton>
-                                            <span>{post.likes}</span>
+                                            <IonCardContent>
+                                                <div className="post-actions">
+                                                    <IonButton fill="clear" className="action-button">
+                                                        <IonIcon slot="icon-only" icon={heartOutline} />
+                                                    </IonButton>
+                                                    <span>{post.likes}</span>
 
-                                            <IonButton fill="clear" className="action-button">
-                                                <IonIcon slot="icon-only" icon={chatbubbleOutline} />
-                                            </IonButton>
-                                            <span>{post.comments}</span>
-                                        </div>
+                                                    <IonButton fill="clear" className="action-button">
+                                                        <IonIcon slot="icon-only" icon={chatbubbleOutline} />
+                                                    </IonButton>
+                                                    <span>{post.comments}</span>
+                                                </div>
 
-                                        <div className="post-caption">
-                                            <strong>{post.username}</strong> {post.caption}
-                                        </div>
+                                                <div className="post-caption">
+                                                    <strong>{post.username}</strong> {post.caption}
+                                                </div>
 
-                                        <div className="post-tags">
-                                            {post.tags.map(tag => (
-                                                <IonChip key={tag} outline color="primary">
-                                                    <IonLabel>#{tag}</IonLabel>
-                                                </IonChip>
-                                            ))}
-                                        </div>
-                                    </IonCardContent>
-                                </IonCard>
-                            </IonCol>
-                        ))}
-                    </IonRow>
-                </IonGrid>
+                                                <div className="post-tags">
+                                                    {post.tags.map(tag => (
+                                                        <IonChip key={tag} outline color="primary">
+                                                            <IonLabel>#{tag}</IonLabel>
+                                                        </IonChip>
+                                                    ))}
+                                                </div>
+                                            </IonCardContent>
+                                        </IonCard>
+                                    </IonCol>
+                                ))}
+                            </IonRow>
+                        </IonGrid>
+                    </IonContent>
+                </div>
             </IonContent>
-        </div>
+        </IonPage>
     );
 };
 
