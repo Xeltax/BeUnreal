@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@hookform/resolvers": "^5.0.1",
+    "@ionic/react": "^8.5.7",
+    "@ionic/react-router": "^8.5.7",
+    "axios": "^1.9.0",
+    "react-hook-form": "^7.56.4",
+    "socket.io-client": "^4.8.1",
+    "yup": "^1.6.1"
+  },
+  "devDependencies": {
+    "@types/socket.io-client": "^1.4.36"
+  }
+}

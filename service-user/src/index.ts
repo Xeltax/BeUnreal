@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/userRoutes';
+import friendshipRoutes from './routes/friendshipRoute';
 import sequelize from './config/database';
 
 dotenv.config();
@@ -16,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/friends', friendshipRoutes);
 
 // Route de test
 app.get('/', (req, res) => {

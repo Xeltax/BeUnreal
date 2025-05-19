@@ -1,124 +1,130 @@
 import React, { useState, useEffect } from 'react';
 import {
     IonContent,
-    IonHeader,
     IonPage,
-    IonTitle,
-    IonToolbar,
     IonInput,
     IonButton,
     IonItem,
     IonLabel,
-    IonLoading,
     IonText,
+    IonLoading,
+    IonIcon,
+    IonRow,
+    IonCol,
+    IonGrid,
     IonCard,
     IonCardContent,
-    IonImg,
+    IonCardHeader,
+    IonCardTitle,
 } from '@ionic/react';
-import { login } from '../services/auth';
+import { logInOutline, logoGoogle, logoFacebook } from 'ionicons/icons';
+import { useAuth } from '../contexts/AuthContext';
 import { useHistory } from 'react-router';
-import { useAuth } from '../hooks/useAuth';
+import '../styles/Login.css';
 
 const Login: React.FC = () => {
-    const history = useHistory();
-    const { isAuthenticated } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [showLoading, setShowLoading] = useState(false);
+    const { authState, login } = useAuth();
+    const history = useHistory();
 
     useEffect(() => {
-        if (isAuthenticated) {
-            history.replace('/profile');
+        if (authState.isAuthenticated) {
+            history.replace('/tabs/camera');
         }
-    }, [isAuthenticated, history]);
+    }, [authState.isAuthenticated, history]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!email || !password) return;
 
-        // Validation
-        if (!email || !password) {
-            setError('Tous les champs sont requis');
-            return;
-        }
-
+        setShowLoading(true);
         try {
-            setLoading(true);
-            setError(null);
-
-            const userData = await login({ email, password });
-
-            // Enregistrer le token d'authentification
-            localStorage.setItem('userToken', userData.token);
-            localStorage.setItem('userId', userData.id.toString());
-
-            // Rediriger vers la page de profil
-            history.push('/profile');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Email ou mot de passe incorrect');
+            await login({ email, password });
+        } catch (error) {
+            console.error('Login error:', error);
         } finally {
-            setLoading(false);
+            setShowLoading(false);
         }
     };
 
     return (
         <IonPage>
-            <IonHeader>
-                <IonToolbar>
-                    <IonTitle>Connexion - BeUnreal</IonTitle>
-                </IonToolbar>
-            </IonHeader>
-            <IonContent className="ion-padding">
-                <div className="ion-text-center ion-padding">
-                    <h1>BeUnreal</h1>
-                    <p>Soyez vous-même en temps réel</p>
-                </div>
-
-                <IonCard>
-                    <IonCardContent>
-                        <form onSubmit={handleSubmit}>
-                            {error && (
-                                <IonText color="danger">
-                                    <p>{error}</p>
-                                </IonText>
-                            )}
-
-                            <IonItem>
-                                <IonLabel position="floating">Email</IonLabel>
-                                <IonInput
-                                    type="email"
-                                    value={email}
-                                    onIonChange={(e) => setEmail(e.detail.value!)}
-                                    required
-                                />
-                            </IonItem>
-
-                            <IonItem>
-                                <IonLabel position="floating">Mot de passe</IonLabel>
-                                <IonInput
-                                    type="password"
-                                    value={password}
-                                    onIonChange={(e) => setPassword(e.detail.value!)}
-                                    required
-                                />
-                            </IonItem>
-
-                            <div className="ion-padding-top">
-                                <IonButton expand="block" type="submit">
-                                    Se connecter
-                                </IonButton>
+            <IonContent className="login-content">
+                <IonGrid>
+                    <IonRow className="ion-justify-content-center ion-align-items-center">
+                        <IonCol size="12" sizeMd="8" sizeLg="6" sizeXl="4">
+                            <div className="logo-container">
+                                <h1>BeUnreal</h1>
                             </div>
 
-                            <div className="ion-text-center ion-padding-top">
-                                <IonText>
-                                    Pas encore de compte? <IonButton fill="clear" routerLink="/register">S'inscrire</IonButton>
-                                </IonText>
-                            </div>
-                        </form>
-                    </IonCardContent>
-                </IonCard>
+                            <IonCard className="login-card">
+                                <IonCardHeader>
+                                    <IonCardTitle>Connexion</IonCardTitle>
+                                </IonCardHeader>
 
-                <IonLoading isOpen={loading} message="Connexion en cours..." />
+                                <IonCardContent>
+                                    <form onSubmit={handleLogin}>
+                                        <IonItem className="ion-margin-bottom">
+                                            <IonLabel position="stacked">Email</IonLabel>
+                                            <IonInput
+                                                type="email"
+                                                value={email}
+                                                onIonChange={e => setEmail(e.detail.value || '')}
+                                                required
+                                            />
+                                        </IonItem>
+
+                                        <IonItem className="ion-margin-bottom">
+                                            <IonLabel position="stacked">Mot de passe</IonLabel>
+                                            <IonInput
+                                                type="password"
+                                                value={password}
+                                                onIonChange={e => setPassword(e.detail.value || '')}
+                                                required
+                                            />
+                                        </IonItem>
+
+                                        {authState.error && (
+                                            <IonText color="danger" className="ion-text-center">
+                                                <p>{authState.error}</p>
+                                            </IonText>
+                                        )}
+
+                                        <IonButton
+                                            expand="block"
+                                            type="submit"
+                                            className="ion-margin-top login-button"
+                                        >
+                                            <IonIcon slot="start" icon={logInOutline} />
+                                            Se connecter
+                                        </IonButton>
+
+                                        <div className="ion-text-center ion-margin-top">
+                                            <IonText>
+                                                <p>
+                                                    Pas encore de compte ?{' '}
+                                                    <a href="/register" onClick={(e) => {
+                                                        e.preventDefault();
+                                                        history.push('/register');
+                                                    }}>
+                                                        S'inscrire
+                                                    </a>
+                                                </p>
+                                            </IonText>
+                                        </div>
+                                    </form>
+                                </IonCardContent>
+                            </IonCard>
+                        </IonCol>
+                    </IonRow>
+                </IonGrid>
+
+                <IonLoading
+                    isOpen={showLoading}
+                    message={'Connexion en cours...'}
+                />
             </IonContent>
         </IonPage>
     );

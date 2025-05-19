@@ -10,13 +10,11 @@ const generateToken = (id: number): string => {
     });
 };
 
-// Créer un utilisateur
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
     console.log("Registering user...");
     try {
         const { username, email, password } = req.body;
 
-        // Vérifier si l'utilisateur existe déjà
         const userExists = await User.findOne({
             where: {
                 [Op.or]: [{ email }, { username }],
@@ -37,9 +35,15 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 
         if (user) {
             res.status(201).json({
-                id: user.id,
-                username: user.username,
-                email: user.email,
+                user : {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    profilePicture: user.profilePicture,
+                    bio: user.bio,
+                    latitude: user.latitude,
+                    longitude: user.longitude,
+                },
                 token: generateToken(user.id),
             });
         } else {
@@ -79,9 +83,15 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         await user.save();
 
         res.status(200).json({
-            id: user.id,
-            username: user.username,
-            email: user.email,
+            user : {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                profilePicture: user.profilePicture,
+                bio: user.bio,
+                latitude: user.latitude,
+                longitude: user.longitude,
+            },
             token: generateToken(user.id),
         });
     } catch (error) {

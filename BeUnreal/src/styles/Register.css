@@ -1,0 +1,12 @@
+.register-content {
+    --background: var(--ion-color-dark);
+}
+
+.register-card {
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.register-button {
+    margin-top: 1.5rem;
+}
