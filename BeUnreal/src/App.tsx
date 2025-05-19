@@ -11,7 +11,7 @@ import {
   setupIonicReact,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { person, chatbubbles, search, camera } from 'ionicons/icons';
+import { person, chatbubbles, search, camera, map } from 'ionicons/icons';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -43,6 +43,7 @@ import CameraView from './pages/CameraView';
 /* Hooks */
 import { useAuth } from './hooks/useAuth';
 import { initSocket, closeSocket } from './services/message';
+import MapView from "./pages/MapView";
 
 setupIonicReact();
 
@@ -83,6 +84,7 @@ const App: React.FC = () => {
                   <Route exact path="/conversations" component={ConversationsList} />
                   <Route exact path="/chat/:id" component={ChatRoom} />
                   <Route exact path="/camera" component={CameraView} />
+                  <Route exact path="/map" component={MapView} />
                   <Route exact path="/">
                     <Redirect to="/profile" />
                   </Route>
@@ -103,6 +105,10 @@ const App: React.FC = () => {
                   <IonTabButton tab="camera" href="/camera">
                     <IonIcon icon={camera} />
                     <IonLabel>Caméra</IonLabel>
+                  </IonTabButton>
+                  <IonTabButton tab="map" href="/map">
+                    <IonIcon icon={map} />
+                    <IonLabel>Carte</IonLabel>
                   </IonTabButton>
                 </IonTabBar>
               </IonTabs>
