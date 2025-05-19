@@ -79,9 +79,15 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         await user.save();
 
         res.status(200).json({
-            id: user.id,
-            username: user.username,
-            email: user.email,
+            user : {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                profilePicture: user.profilePicture,
+                bio: user.bio,
+                latitude: user.latitude,
+                longitude: user.longitude,
+            },
             token: generateToken(user.id),
         });
     } catch (error) {

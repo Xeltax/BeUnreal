@@ -1,69 +1,116 @@
 import api from './api';
+import { LoginCredentials, RegisterCredentials, User } from '../types';
 
-interface RegisterData {
-    username: string;
-    email: string;
-    password: string;
-}
+const TOKEN_KEY = 'beunreal_token';
+const USER_KEY = 'beunreal_user';
 
-interface LoginData {
-    email: string;
-    password: string;
-}
+export const AuthService = {
+    setToken: (token: string): void => {
+        localStorage.setItem(TOKEN_KEY, token);
+    },
 
-interface AuthResponse {
-    id: number;
-    username: string;
-    email: string;
-    token: string;
-}
+    getToken: (): string | null => {
+        return localStorage.getItem(TOKEN_KEY);
+    },
 
-export const register = async (userData: RegisterData): Promise<AuthResponse> => {
-    const response = await api.post('/users/register', userData);
-    console.log(response);
-    return response.data;
-};
+    removeToken: (): void => {
+        localStorage.removeItem(TOKEN_KEY);
+    },
 
-export const login = async (userData: LoginData): Promise<AuthResponse> => {
-    const response = await api.post('/users/login', userData);
-    return response.data;
-};
+    setUser: (user: User): void => {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+    },
 
-export const getUserProfile = async (): Promise<any> => {
-    const response = await api.get('/users/profile');
-    return response.data;
-};
+    getUser: (): User | null => {
+        const userStr = localStorage.getItem(USER_KEY);
+        console.log('User from localStorage:', userStr);
+        return userStr ? JSON.parse(userStr) : null;
+    },
 
-export const updateUserProfile = async (userData: any): Promise<any> => {
-    const response = await api.put('/users/profile', userData);
-    return response.data;
-};
+    removeUser: (): void => {
+        localStorage.removeItem(USER_KEY);
+    },
 
-export const deleteUserAccount = async (): Promise<any> => {
-    const response = await api.delete('/users/profile');
-    return response.data;
-};
+    isAuthenticated: (): boolean => {
+        return !!AuthService.getToken();
+    },
 
-export const searchUsers = async (query: string): Promise<any[]> => {
-    const response = await api.get(`/users/search?query=${encodeURIComponent(query)}`);
-    return response.data;
-};
+    login: async (credentials: LoginCredentials): Promise<User> => {
+        try {
+            const response = await api.post('/users/login', credentials);
+            const { token, user } = response.data;
+            console.log('Login response:', response.data);
 
-export const findNearbyUsers = async (latitude: number, longitude: number, distance?: number): Promise<any[]> => {
-    const params = new URLSearchParams({
-        latitude: latitude.toString(),
-        longitude: longitude.toString(),
-    });
+            AuthService.setToken(token);
+            AuthService.setUser(user);
 
-    if (distance) {
-        params.append('distance', distance.toString());
+            return user;
+        } catch (error) {
+            console.error('Login error:', error);
+            throw error;
+        }
+    },
+
+    register: async (credentials: RegisterCredentials): Promise<User> => {
+        try {
+            const response = await api.post('/users/register', credentials);
+            const { token, user } = response.data;
+
+            AuthService.setToken(token);
+            AuthService.setUser(user);
+
+            return user;
+        } catch (error) {
+            console.error('Register error:', error);
+            throw error;
+        }
+    },
+
+    logout: async (): Promise<void> => {
+        try {
+            await api.post('/users/logout');
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            AuthService.removeToken();
+            AuthService.removeUser();
+        }
+    },
+
+    getCurrentUser: async (): Promise<User> => {
+        const localUser = AuthService.getUser();
+
+        if (localUser) {
+            return Promise.resolve(localUser);
+        }
+
+        try {
+            const response = await api.get('/users/me');
+            const user = response.data.user;
+
+            AuthService.setUser(user);
+
+            return user;
+        } catch (error) {
+            console.error('Get current user error:', error);
+            throw error;
+        }
+    },
+
+    updateProfile: async (userData: Partial<User>): Promise<User> => {
+        try {
+            const response = await api.put('/users/profile', userData);
+            const updatedUser = response.data.user;
+
+            const currentUser = AuthService.getUser();
+            if (currentUser) {
+                AuthService.setUser({ ...currentUser, ...updatedUser });
+            }
+
+            return updatedUser;
+        } catch (error) {
+            console.error('Update profile error:', error);
+            throw error;
+        }
     }
-
-    const response = await api.get(`/users/nearby?${params.toString()}`);
-    return response.data;
-};
-
-export const updateUserLocation = async (latitude: number, longitude: number): Promise<any> => {
-    const response = await api.put('/users/location', { latitude, longitude });
-    return response.data;
 };

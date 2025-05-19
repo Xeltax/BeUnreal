@@ -1,268 +1,223 @@
 import React, { useState, useEffect } from 'react';
 import {
     IonContent,
-    IonHeader,
     IonPage,
-    IonTitle,
+    IonHeader,
     IonToolbar,
-    IonButton,
+    IonTitle,
+    IonButtons,
+    IonBackButton,
+    IonAvatar,
     IonItem,
     IonLabel,
     IonInput,
     IonTextarea,
-    IonLoading,
-    IonText,
+    IonButton,
+    IonIcon,
+    IonGrid,
+    IonRow,
+    IonCol,
     IonCard,
     IonCardContent,
-    IonAvatar,
-    IonIcon,
-    IonAlert,
-    IonBackButton,
-    IonButtons,
-    IonRouterLink,
+    IonCardHeader,
+    IonCardTitle,
+    IonLoading,
+    IonText,
+    IonToast,
 } from '@ionic/react';
-import { camera, logOutOutline, trash, pencil } from 'ionicons/icons';
-import { useAuth } from '../hooks/useAuth';
-import { updateUserProfile, deleteUserAccount } from '../services/auth';
+import { cameraOutline, saveOutline, logOutOutline, createOutline } from 'ionicons/icons';
+import { useAuth } from '../contexts/AuthContext';
 import { useHistory } from 'react-router';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import '../styles/Profile.css';
 
 const Profile: React.FC = () => {
+    const { authState, updateProfile, logout } = useAuth();
     const history = useHistory();
-    const { user, isAuthenticated, loading: authLoading, loadUser, logout } = useAuth();
-
-    const [editing, setEditing] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const user = authState.user;
 
     const [username, setUsername] = useState('');
     const [bio, setBio] = useState('');
-    const [profilePicture, setProfilePicture] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastColor, setToastColor] = useState('success');
 
     useEffect(() => {
         if (user) {
             setUsername(user.username || '');
             setBio(user.bio || '');
-            setProfilePicture(user.profilePicture || '');
         }
     }, [user]);
 
-    useEffect(() => {
-        if (!isAuthenticated && !authLoading) {
-            history.replace('/login');
-        }
-    }, [isAuthenticated, authLoading, history]);
-
-    const handleLogout = () => {
-        logout();
-        history.replace('/login');
-    };
-
-    const handleDeleteAccount = async () => {
-        try {
-            setLoading(true);
-            await deleteUserAccount();
-            logout();
-            history.replace('/register');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Erreur lors de la suppression du compte');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleUpdateProfile = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            await updateUserProfile({
-                username,
-                bio,
-                profilePicture,
-            });
-
-            loadUser();
-            setEditing(false);
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Erreur lors de la mise à jour du profil');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleTakePicture = async () => {
-        try {
-            const image = await Camera.getPhoto({
-                quality: 90,
-                allowEditing: true,
-                resultType: CameraResultType.DataUrl,
-                source: CameraSource.Prompt,
-            });
-
-            if (image.dataUrl) {
-                setProfilePicture(image.dataUrl);
-            }
-        } catch (error) {
-            console.error('Erreur lors de la prise de photo:', error);
-        }
-    };
-
-    if (authLoading) {
-        return (
-            <IonPage>
-                <IonContent className="ion-padding ion-text-center">
-                    <IonLoading isOpen={true} message="Chargement du profil..." />
-                </IonContent>
-            </IonPage>
-        );
+    if (!user) {
+        return <IonLoading isOpen={true} message={'Chargement du profil...'} />;
     }
+
+    const handleSaveProfile = async () => {
+        setIsLoading(true);
+
+        try {
+            await updateProfile({
+                username,
+                bio
+            });
+            setToastColor('success');
+            setToastMessage('Profil mis à jour avec succès');
+            setShowToast(true);
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            setToastColor('danger');
+            setToastMessage('Erreur lors de la mise à jour du profil');
+            setShowToast(true);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        setIsLoading(true);
+        try {
+            await logout();
+            history.replace('/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+            setToastColor('danger');
+            setToastMessage('Erreur lors de la déconnexion');
+            setShowToast(true);
+            setIsLoading(false);
+        }
+    };
+
+    const handleChangeProfilePicture = () => {
+        // Implémentation à venir pour le changement de photo de profil
+        setToastMessage('Fonctionnalité à venir');
+        setToastColor('primary');
+        setShowToast(true);
+    };
 
     return (
         <IonPage>
             <IonHeader>
                 <IonToolbar>
-                    {editing && (
-                        <IonButtons slot="start">
-                            <IonButton onClick={() => setEditing(false)}>Annuler</IonButton>
-                        </IonButtons>
-                    )}
-                    <IonTitle>{editing ? 'Modifier le profil' : 'Mon profil'}</IonTitle>
+                    <IonButtons slot="start">
+                        <IonBackButton defaultHref="/tabs/camera" />
+                    </IonButtons>
+                    <IonTitle>Mon Profil</IonTitle>
                     <IonButtons slot="end">
                         <IonButton onClick={handleLogout}>
-                            <IonIcon icon={logOutOutline} slot="icon-only" />
+                            <IonIcon slot="icon-only" icon={logOutOutline} />
                         </IonButton>
                     </IonButtons>
                 </IonToolbar>
             </IonHeader>
-            <IonContent className="ion-padding">
-                {error && (
-                    <IonText color="danger">
-                        <p>{error}</p>
-                    </IonText>
-                )}
 
-                <div className="ion-text-center ion-padding">
-                    <IonAvatar style={{ width: '100px', height: '100px', margin: '0 auto' }}>
-                        <img
-                            src={profilePicture || 'https://ionicframework.com/docs/img/demos/avatar.svg'}
-                            alt="Profile"
-                        />
-                    </IonAvatar>
-
-                    {editing && (
-                        <IonButton
-                            fill="clear"
-                            size="small"
-                            onClick={handleTakePicture}
-                            style={{ marginTop: '10px' }}
-                        >
-                            <IonIcon icon={camera} slot="start" />
-                            Changer la photo
-                        </IonButton>
-                    )}
-
-                    {!editing && (
-                        <h2 className="ion-padding-top">{user?.username}</h2>
-                    )}
-                </div>
-
-                <IonCard>
-                    <IonCardContent>
-                        {editing ? (
-                            // Formulaire d'édition
-                            <>
-                                <IonItem>
-                                    <IonLabel position="floating">Nom d'utilisateur</IonLabel>
-                                    <IonInput
-                                        value={username}
-                                        onIonChange={(e) => setUsername(e.detail.value!)}
-                                    />
-                                </IonItem>
-
-                                <IonItem>
-                                    <IonLabel position="floating">Bio</IonLabel>
-                                    <IonTextarea
-                                        rows={4}
-                                        value={bio}
-                                        onIonChange={(e) => setBio(e.detail.value!)}
-                                    />
-                                </IonItem>
-
-                                <div className="ion-padding-top">
-                                    <IonButton expand="block" onClick={handleUpdateProfile}>
-                                        Enregistrer les modifications
+            <IonContent className="profile-content">
+                <IonGrid>
+                    <IonRow className="ion-justify-content-center">
+                        <IonCol size="12" sizeMd="8" sizeLg="6">
+                            <div className="profile-header ion-text-center">
+                                <div className="avatar-container">
+                                    <IonAvatar className="profile-avatar">
+                                        <img
+                                            src={user.profilePicture || 'https://gravatar.com/avatar?d=mp'}
+                                            alt="Profile"
+                                        />
+                                    </IonAvatar>
+                                    <IonButton
+                                        fill="clear"
+                                        className="avatar-edit-button"
+                                        onClick={handleChangeProfilePicture}
+                                    >
+                                        <IonIcon icon={cameraOutline} />
                                     </IonButton>
                                 </div>
-                            </>
-                        ) : (
-                            // Affichage du profil
-                            <>
-                                <IonItem lines="none">
-                                    <IonLabel>
-                                        <h3>Email</h3>
-                                        <p>{user?.email}</p>
-                                    </IonLabel>
-                                </IonItem>
+                                <h2>{user.username}</h2>
+                                <p className="user-email">{user.email}</p>
+                                <p className="join-date">Membre depuis {new Date(user.createdAt || new Date()).toLocaleDateString()}</p>
+                            </div>
 
-                                <IonItem lines="none">
-                                    <IonLabel>
-                                        <h3>Bio</h3>
-                                        <p>{user?.bio || 'Aucune bio définie'}</p>
-                                    </IonLabel>
-                                </IonItem>
+                            <IonCard className="profile-card">
+                                <IonCardHeader>
+                                    <IonCardTitle>
+                                        <div className="card-title-container">
+                                            <span>Informations de profil</span>
+                                            <IonIcon icon={createOutline} />
+                                        </div>
+                                    </IonCardTitle>
+                                </IonCardHeader>
+                                <IonCardContent>
+                                    <IonItem className="ion-margin-bottom custom-item">
+                                        <IonLabel position="stacked">Nom d'utilisateur</IonLabel>
+                                        <IonInput
+                                            value={username}
+                                            onIonChange={e => setUsername(e.detail.value || '')}
+                                            placeholder="Votre nom d'utilisateur"
+                                        />
+                                    </IonItem>
 
-                                <div className="ion-padding-top">
-                                    <IonButton expand="block" onClick={() => setEditing(true)}>
-                                        <IonIcon icon={pencil} slot="start" />
-                                        Modifier le profil
-                                    </IonButton>
+                                    <IonItem className="ion-margin-bottom custom-item">
+                                        <IonLabel position="stacked">Email</IonLabel>
+                                        <IonInput
+                                            value={user.email}
+                                            readonly
+                                        />
+                                    </IonItem>
+
+                                    <IonItem className="ion-margin-bottom custom-item">
+                                        <IonLabel position="stacked">Bio</IonLabel>
+                                        <IonTextarea
+                                            value={bio}
+                                            onIonChange={e => setBio(e.detail.value || '')}
+                                            rows={4}
+                                            placeholder="Parlez-nous de vous..."
+                                        />
+                                    </IonItem>
 
                                     <IonButton
                                         expand="block"
-                                        color="danger"
-                                        fill="outline"
-                                        className="ion-margin-top"
-                                        onClick={() => setShowDeleteConfirm(true)}
+                                        onClick={handleSaveProfile}
+                                        className="save-button"
                                     >
-                                        <IonIcon icon={trash} slot="start" />
-                                        Supprimer le compte
+                                        <IonIcon slot="start" icon={saveOutline} />
+                                        Enregistrer les modifications
                                     </IonButton>
-                                </div>
-                            </>
-                        )}
-                    </IonCardContent>
-                </IonCard>
+                                </IonCardContent>
+                            </IonCard>
 
-                <div className="ion-padding ion-text-center">
-                    <IonRouterLink routerLink="/user-search">
-                        Rechercher des amis
-                    </IonRouterLink>
-                    {' | '}
-                    <IonRouterLink routerLink="/nearby-users">
-                        Personnes à proximité
-                    </IonRouterLink>
-                </div>
+                            <IonCard className="profile-card">
+                                <IonCardHeader>
+                                    <IonCardTitle>Statistiques</IonCardTitle>
+                                </IonCardHeader>
+                                <IonCardContent>
+                                    <IonGrid>
+                                        <IonRow>
+                                            <IonCol size="4" className="stats-col">
+                                                <div className="stats-number">0</div>
+                                                <div className="stats-label">Posts</div>
+                                            </IonCol>
+                                            <IonCol size="4" className="stats-col">
+                                                <div className="stats-number">0</div>
+                                                <div className="stats-label">Followers</div>
+                                            </IonCol>
+                                            <IonCol size="4" className="stats-col">
+                                                <div className="stats-number">0</div>
+                                                <div className="stats-label">Following</div>
+                                            </IonCol>
+                                        </IonRow>
+                                    </IonGrid>
+                                </IonCardContent>
+                            </IonCard>
+                        </IonCol>
+                    </IonRow>
+                </IonGrid>
 
-                <IonLoading isOpen={loading} message="Chargement en cours..." />
-
-                <IonAlert
-                    isOpen={showDeleteConfirm}
-                    header="Confirmation"
-                    message="Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible."
-                    buttons={[
-                        {
-                            text: 'Annuler',
-                            role: 'cancel',
-                            handler: () => setShowDeleteConfirm(false),
-                        },
-                        {
-                            text: 'Supprimer',
-                            role: 'destructive',
-                            handler: handleDeleteAccount,
-                        },
-                    ]}
+                <IonLoading isOpen={isLoading} message={'Chargement...'} />
+                <IonToast
+                    isOpen={showToast}
+                    onDidDismiss={() => setShowToast(false)}
+                    message={toastMessage}
+                    duration={2000}
+                    color={toastColor}
                 />
             </IonContent>
         </IonPage>

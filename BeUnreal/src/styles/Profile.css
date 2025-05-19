@@ -1,0 +1,79 @@
+.profile-content {
+    --background: var(--ion-color-dark);
+}
+
+.profile-header {
+    padding: 2rem 0;
+}
+
+.avatar-container {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 1rem;
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto;
+    border: 3px solid var(--ion-color-primary);
+}
+
+.avatar-edit-button {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    --border-radius: 50%;
+    --background: var(--ion-color-primary);
+    --color: white;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+}
+
+.user-email {
+    margin-top: 0;
+    color: var(--ion-color-medium);
+}
+
+.join-date {
+    font-size: 0.8rem;
+    color: var(--ion-color-medium);
+}
+
+.profile-card {
+    margin-top: 1rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.save-button {
+    margin-top: 1.5rem;
+}
+
+.card-title-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.custom-item {
+    --background: transparent;
+    --border-color: var(--ion-color-step-150);
+}
+
+.stats-col {
+    text-align: center;
+    padding: 10px;
+}
+
+.stats-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--ion-color-primary);
+}
+
+.stats-label {
+    font-size: 0.9rem;
+    color: var(--ion-color-medium);
+}

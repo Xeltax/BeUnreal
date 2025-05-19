@@ -7,18 +7,40 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: false,
 });
 
-// Intercepteur pour ajouter le token d'authentification
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('userToken');
+        const token = localStorage.getItem('beunreal_token');
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
         return config;
     },
     (error) => {
+        return Promise.reject(error);
+    }
+);
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        console.error('API Error:', error);
+
+        if (error.response) {
+            if (error.response.status === 401) {
+                console.error('Session expirée ou non autorisé');
+
+                localStorage.removeItem('beunreal_token');
+                localStorage.removeItem('beunreal_user');
+
+                window.location.href = '/login';
+            }
+        }
+
         return Promise.reject(error);
     }
 );
