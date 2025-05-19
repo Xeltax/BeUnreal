@@ -3,6 +3,7 @@ import dotenv from 'dotenv'
 import cors from 'cors';
 import mediaRoutes from "./routes/media-routes";
 import sequelize from "./config/database";
+import './models/Media'
 
 dotenv.config()
 const BUCKET_NAME = process.env.BUCKET_NAME ?? "media";
@@ -16,7 +17,7 @@ app.use(express.json())
 app.use("/api/media/", mediaRoutes)
 
 sequelize
-    .sync({ alter: true})
+    .sync({ alter: true })
     .then(() => {
         console.log('Base de données synchronisée');
         app.listen(port, () => {

@@ -9,7 +9,7 @@ import {
     findUsersByLocation,
     updateUserLocation,
 } from '../controllers/userController';
-import { protect } from '../middleware/auth';
+import {protect, userIdFromParams} from '../middleware/auth';
 
 const router = express.Router();
 
@@ -24,5 +24,7 @@ router.delete('/profile', protect, deleteUser);
 router.get('/search', protect, findUsers);
 router.get('/nearby', protect, findUsersByLocation);
 router.put('/location', protect, updateUserLocation);
+
+router.get('/internal/profile/:id', userIdFromParams, getUserProfile)
 
 export default router;

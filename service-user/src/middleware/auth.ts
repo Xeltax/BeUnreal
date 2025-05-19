@@ -39,3 +39,12 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
         res.status(401).json({ message: 'Non autorisé, pas de token' });
     }
 };
+
+export const userIdFromParams = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (req.params.id) {
+        (req as any).userId = req.params.id
+        next()
+    } else {
+        res.status(400).json({ message: 'Id utilisateur attendu /internal/profile/:id' })
+    }
+}
