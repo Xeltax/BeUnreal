@@ -25,3 +25,9 @@ export interface RegisterCredentials {
     password: string;
     confirmPassword: string;
 }
+
+export interface Friend {
+    id : number
+    profilePicture: string
+    username : string
+}

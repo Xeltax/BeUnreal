@@ -26,9 +26,9 @@ import {
     IonToast,
 } from '@ionic/react';
 import { cameraOutline, saveOutline, logOutOutline, createOutline } from 'ionicons/icons';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useHistory } from 'react-router';
-import '../styles/Profile.css';
+import '../../styles/Profile.css';
 
 const Profile: React.FC = () => {
     const { authState, updateProfile, logout } = useAuth();
@@ -57,13 +57,16 @@ const Profile: React.FC = () => {
         setIsLoading(true);
 
         try {
-            await updateProfile({
-                username,
+            updateProfile({
                 bio
+            }).then((response) => {
+                console.log("response", response);
+                console.log("pass update profile");
+                setToastColor('success');
+                setToastMessage('Profil mis à jour avec succès');
+                setShowToast(true);
+                setIsLoading(false);
             });
-            setToastColor('success');
-            setToastMessage('Profil mis à jour avec succès');
-            setShowToast(true);
         } catch (error) {
             console.error('Error updating profile:', error);
             setToastColor('danger');
@@ -96,12 +99,9 @@ const Profile: React.FC = () => {
     };
 
     return (
-        <IonPage>
+        <div className="profile-container">
             <IonHeader>
                 <IonToolbar>
-                    <IonButtons slot="start">
-                        <IonBackButton defaultHref="/tabs/camera" />
-                    </IonButtons>
                     <IonTitle>Mon Profil</IonTitle>
                     <IonButtons slot="end">
                         <IonButton onClick={handleLogout}>
@@ -149,7 +149,9 @@ const Profile: React.FC = () => {
                                     <IonItem className="ion-margin-bottom custom-item">
                                         <IonLabel position="stacked">Nom d'utilisateur</IonLabel>
                                         <IonInput
+                                            disabled={true}
                                             value={username}
+                                            readonly
                                             onIonChange={e => setUsername(e.detail.value || '')}
                                             placeholder="Votre nom d'utilisateur"
                                         />
@@ -158,6 +160,7 @@ const Profile: React.FC = () => {
                                     <IonItem className="ion-margin-bottom custom-item">
                                         <IonLabel position="stacked">Email</IonLabel>
                                         <IonInput
+                                            disabled={true}
                                             value={user.email}
                                             readonly
                                         />
@@ -220,7 +223,7 @@ const Profile: React.FC = () => {
                     color={toastColor}
                 />
             </IonContent>
-        </IonPage>
+        </div>
     );
 };
 

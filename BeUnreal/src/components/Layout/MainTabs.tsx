@@ -11,16 +11,15 @@ import { IonReactRouter } from '@ionic/react-router';
 import { Route, Redirect } from 'react-router-dom';
 import {peopleOutline, cameraOutline, compassOutline, personOutline, mapOutline} from 'ionicons/icons';
 // import CameraView from './CameraView';
-import FriendsList from './FriendList';
+import ConversationList from './ConversationList';
 import DiscoverView from './DiscoverView';
-import Profile from '../../pages/Profile';
+import FriendList from '../FriendList/FriendList';
+import Profile from './Profile';
 import { useAuth } from '../../contexts/AuthContext';
 import '../../styles/MainTabs.css';
 
 const MainTabs: React.FC = () => {
     const { authState } = useAuth();
-
-    console.log('MainTabs authState:', authState);
 
     if (!authState.isAuthenticated) {
         return <Redirect to="/login" />;
@@ -30,7 +29,8 @@ const MainTabs: React.FC = () => {
         <IonReactRouter>
             <IonTabs>
                 <IonRouterOutlet>
-                    <Route path="/tabs/friends" component={FriendsList} exact={true} />
+                    <Route path="/tabs/conv" component={ConversationList} exact={true} />
+                    <Route path="/tabs/friends" component={FriendList} exact={true} />
                     {/*<Route path="/tabs/camera" component={CameraView} exact={true} />*/}
                     <Route path="/tabs/discover" component={DiscoverView} exact={true} />
                     <Route path="/tabs/profile" component={Profile} exact={true} />
@@ -42,6 +42,12 @@ const MainTabs: React.FC = () => {
                         <IonIcon icon={mapOutline} />
                         <IonLabel>Carte</IonLabel>
                     </IonTabButton>
+
+                    <IonTabButton tab="conv" href="/tabs/conv">
+                        <IonIcon icon={peopleOutline} />
+                        <IonLabel>Conv</IonLabel>
+                    </IonTabButton>
+
 
                     <IonTabButton tab="friends" href="/tabs/friends">
                         <IonIcon icon={peopleOutline} />

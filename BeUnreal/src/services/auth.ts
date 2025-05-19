@@ -100,7 +100,7 @@ export const AuthService = {
     updateProfile: async (userData: Partial<User>): Promise<User> => {
         try {
             const response = await api.put('/users/profile', userData);
-            const updatedUser = response.data.user;
+            const updatedUser = response.data;
 
             const currentUser = AuthService.getUser();
             if (currentUser) {
