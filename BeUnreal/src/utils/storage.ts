@@ -1,4 +1,4 @@
-import { AuthUser } from '../types/AuthType';
+import { User } from '../types';
 
 export const setToken = (token: string): void => {
     localStorage.setItem('token', token);
@@ -8,16 +8,16 @@ export const getToken = (): string | null => {
     return localStorage.getItem('token');
 };
 
-export const setUser = (user: AuthUser): void => {
+export const setUser = (user: User): void => {
     localStorage.setItem('user', JSON.stringify(user));
 };
 
-export const getUser = (): AuthUser | null => {
+export const getUser = (): User | null => {
     const userStr = localStorage.getItem('user');
     if (!userStr) return null;
 
     try {
-        return JSON.parse(userStr) as AuthUser;
+        return JSON.parse(userStr) as User;
     } catch (error) {
         return null;
     }
