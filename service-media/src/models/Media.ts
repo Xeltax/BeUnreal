@@ -17,7 +17,7 @@ interface MediaAttributes {
 
 interface MediaCreationAttributes extends Optional<MediaAttributes, 'id'> {}
 
-class Media extends Model<MediaAttributes, MediaCreationAttributes> implements MediaAttributes {
+export class Media extends Model<MediaAttributes, MediaCreationAttributes> implements MediaAttributes {
     id!: number
     userId!: number
     user?: User
