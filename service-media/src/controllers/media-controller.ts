@@ -131,8 +131,6 @@ export const GetStoriesAround = async (req: Request, res: Response): Promise<voi
             media.user = (await (await response.json()))
         }
 
-        console.log(results)
-
         res.status(200).json(results.map(media => ({
             id: media.id,
             userId: media.userId,

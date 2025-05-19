@@ -1,51 +1,56 @@
 import React, {useEffect, useRef, useState} from 'react';
-import { IonPage, IonContent, useIonToast } from '@ionic/react';
-import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
+import {IonContent, IonPage, useIonToast} from '@ionic/react';
+import {Geolocation} from '@capacitor/geolocation';
+import {Capacitor} from '@capacitor/core';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import StoryModal from "../components/StoryModal";
+import {User} from "../types";
+import {AuthService} from "../services/auth";
 
-interface Story {
-    id: string;
-    lat: number;
-    lng: number;
-    videoUrl?: string;
-    photoUrl?: string;
-    username: string;
-    city: string;
+export interface Story {
+    id: number,
+    userId: number,
+    user?: User,
+    mediaUrl: string,
+    city?: string,
+    createdAt: Date,
+
+    isPublic: boolean,
+    latitude?: number,
+    longitude?: number,
 }
-
-const fakeStories: Story[] = [
-    // 20 stories très proches du centre (rayon ~200m)
-    ...Array.from({ length: 100 }).map((_, i) => ({
-        id: `center-${i + 1}`,
-        lat: 49.182863 + (Math.random() - 0.5) * 0.008, // ~±0.0015 degrés ~ ±150m
-        lng: -0.370679 + (Math.random() - 0.5) * 0.008,
-        videoUrl: i % 2 === 0
-            ? 'https://www.w3schools.com/html/mov_bbb.mp4'
-            : 'https://www.w3schools.com/html/movie.mp4',
-        username: "Ewennn",
-        city: "Caen",
-    })),
-    // 10 stories autour du centre (rayon ~1.5-2km)
-    ...Array.from({ length: 10 }).map((_, i) => ({
-        id: `outer-${i + 1}`,
-        lat: 49.182863 + (Math.random() - 0.5) * 0.02, // ~±0.01 degrés ~ ±1km
-        lng: -0.370679 + (Math.random() - 0.5) * 0.02,
-        videoUrl: i % 2 === 0
-            ? 'https://www.w3schools.com/html/mov_bbb.mp4'
-            : 'https://www.w3schools.com/html/movie.mp4',
-        username: "Ewennn",
-        city: "Caen",
-    })),
-];
 
 const MapView: React.FC = () => {
     const [present] = useIonToast();
     const mapRef = useRef<L.Map | null>(null);
+    const [stories, setStories] = useState<Story[]>([]);
     const [selectedStories, setSelectedStories] = useState<Story[]>([]);
+
+    const fetchStories = async (latitude: number, longitude: number, radius: number) => {
+        try {
+            const res = await fetch('http://localhost:3002/api/media/stories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    authorization: 'Bearer ' + AuthService.getToken()!
+                },
+                body: JSON.stringify({ latitude, longitude, radius }),
+            });
+
+            if (!res.ok) {
+                console.error(res)
+                return
+            }
+
+            const data = await res.json();
+
+            setStories(data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const initializeMap = (lat: number, lng: number) => {
         if (mapRef.current) {
@@ -65,19 +70,28 @@ const MapView: React.FC = () => {
                 '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         }).addTo(map);
 
-        const heatPoints = fakeStories.map((s) => [s.lat, s.lng, 0.8]);
-        // @ts-ignore
-        L.heatLayer(heatPoints, { radius: 25, blur: 15, maxZoom: 17 }).addTo(map);
+        // Initial fetch
+        const loadStories = () => {
+            console.log("LOAD")
+            const bounds = map.getBounds();
+            const radius = Math.floor(
+                (bounds.getSouthWest().distanceTo(bounds.getNorthEast()) / 2) * 1.6
+            );
+            const center = bounds.getCenter();
+            fetchStories(center.lat, center.lng, radius).finally();
+        };
+
+        map.on('moveend', loadStories);
 
         map.on('click', (e: L.LeafletMouseEvent) => {
             const { latlng } = e;
 
-            const found = fakeStories
+            const found = stories
                 .filter((story) => {
-                    const dist = map.distance(latlng, L.latLng(story.lat, story.lng));
+                    const dist = map.distance(latlng, L.latLng(story.latitude!, story.longitude!));
                     return dist < 80;
                 })
-                .slice(0, 10); // max 10 stories
+                .slice(0, 10);
 
             if (found.length > 0) {
                 setSelectedStories(found);
@@ -86,8 +100,24 @@ const MapView: React.FC = () => {
 
         setTimeout(() => {
             map.invalidateSize();
+            loadStories(); // fetch initial
         }, 100);
     };
+
+    useEffect(() => {
+        if (!mapRef.current) return;
+
+        const heatLayer = (L as any).heatLayer(
+            stories.map((s) => [s.latitude, s.longitude, 0.8]),
+            { radius: 25, blur: 15, maxZoom: 17 }
+        );
+
+        heatLayer.addTo(mapRef.current);
+
+        return () => {
+            mapRef.current?.removeLayer(heatLayer);
+        };
+    }, [stories]);
 
     useEffect(() => {
         const loadMap = async () => {

@@ -10,7 +10,7 @@ const router = express.Router()
 
 router.post('/', protect, upload.single('file'), PostMedia)
 router.post('/story', protect, upload.single('file'), PostPublicStory)
-router.get('/story', protect, GetStoriesAround)
+router.post('/stories', protect, GetStoriesAround)
 router.get('/:key', protect, GetMedia)
 router.delete('/:key', protect, DeleteMedia)
 
