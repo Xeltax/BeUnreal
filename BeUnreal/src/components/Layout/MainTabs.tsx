@@ -17,6 +17,7 @@ import FriendList from '../FriendList/FriendList';
 import Profile from './Profile';
 import { useAuth } from '../../contexts/AuthContext';
 import '../../styles/MainTabs.css';
+import MapView from "../../pages/MapView";
 
 const MainTabs: React.FC = () => {
     const { authState } = useAuth();
@@ -34,11 +35,12 @@ const MainTabs: React.FC = () => {
                     {/*<Route path="/tabs/camera" component={CameraView} exact={true} />*/}
                     <Route path="/tabs/discover" component={DiscoverView} exact={true} />
                     <Route path="/tabs/profile" component={Profile} exact={true} />
+                    <Route path="/tabs/map" component={MapView} exact={true}/>
                     <Route exact path="/tabs" render={() => <Redirect to="/tabs/camera" />} />
                 </IonRouterOutlet>
 
                 <IonTabBar slot="bottom" className="main-tab-bar">
-                    <IonTabButton tab="friends" href="/tabs/friends">
+                    <IonTabButton tab="map" href="/tabs/map">
                         <IonIcon icon={mapOutline} />
                         <IonLabel>Carte</IonLabel>
                     </IonTabButton>
