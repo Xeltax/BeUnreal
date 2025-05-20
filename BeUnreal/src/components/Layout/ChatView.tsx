@@ -1,23 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
-    IonContent,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonFooter,
-    IonTextarea,
-    IonButton,
-    IonIcon,
     IonAvatar,
-    IonSpinner,
     IonBackButton,
+    IonButton,
     IonButtons,
-    IonList
+    IonContent,
+    IonFooter,
+    IonHeader,
+    IonIcon,
+    IonList,
+    IonSpinner,
+    IonTextarea,
+    IonTitle,
+    IonToolbar
 } from '@ionic/react';
-import { sendOutline, imageOutline, arrowBackOutline } from 'ionicons/icons';
-import ChatService, { Message } from '../../services/chat';
-import { getProfilePicture } from '../../utils/userUtils';
+import {imageOutline, sendOutline} from 'ionicons/icons';
+import ChatService, {Message} from '../../services/chat';
 import '../../styles/ChatView.css';
+import {AuthService} from "../../services/auth";
 
 interface ChatViewProps {
     conversationId: number;
@@ -35,29 +35,47 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLIonContentElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        loadMessages();
+        loadMessages().finally();
 
-        const messageListener = (message: Message) => {
-            setMessages(prevMessages => {
-                if (prevMessages.some(m => m.id === message.id)) {
-                    return prevMessages;
-                }
+        const messageListener = async (message: Message) => {
+            // Dédupliqué comme avant
+            const isDuplicate = messages.some(m => m.id === message.id);
+            if (isDuplicate) return;
 
-                if (message.senderId === userId && (!message.id || message.id <= 0)) {
-                    const isDuplicate = prevMessages.some(
-                        m => m.senderId === message.senderId &&
-                            m.content === message.content &&
-                            new Date(m.timestamp).getTime() > Date.now() - 2000
-                    );
-                    if (isDuplicate) {
-                        return prevMessages;
+            // Gérer les doublons de l'utilisateur
+            if (message.senderId === userId && (!message.id || message.id <= 0)) {
+                const duplicateByTime = messages.some(
+                    m =>
+                        m.senderId === message.senderId &&
+                        m.content === message.content &&
+                        new Date(m.timestamp).getTime() > Date.now() - 2000
+                );
+                if (duplicateByTime) return;
+            }
+
+            // S'il s'agit d'un média, enrichir avec l'URL
+            let enrichedMessage = { ...message };
+            if (message.type !== 'text' && message.mediaUrl) {
+                try {
+                    const res = await fetch(`http://localhost:3002/api/media/${message.mediaUrl}`, {
+                        headers: {
+                            Authorization: `Bearer ${AuthService.getToken()!}`,
+                        },
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        enrichedMessage.mediaUrl = data.url;
                     }
+                } catch (err) {
+                    console.error('Erreur lors du chargement d\'un media en temps réel :', err);
                 }
+            }
 
-                return [...prevMessages, message];
-            });
+            setMessages(prevMessages => [...prevMessages, enrichedMessage]);
 
             if (message.senderId !== userId) {
                 ChatService.markAsRead(conversationId, message.id);
@@ -95,7 +113,33 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         setIsLoading(true);
         try {
             const messagesList = await ChatService.getConversationMessages(conversationId);
-            setMessages(messagesList);
+
+            // Pour tous les messages de type media, récupérer leur vraie URL
+            const enrichedMessages = await Promise.all(
+                messagesList.map(async (msg) => {
+                    if (msg.type !== 'text' && msg.mediaUrl) {
+                        try {
+                            const res = await fetch(`http://localhost:3002/api/media/${msg.mediaUrl}`, {
+                                headers: {
+                                    Authorization: `Bearer ${AuthService.getToken()!}`
+                                }
+                            });
+
+                            if (!res.ok) throw new Error('Erreur récupération média');
+
+                            const data = await res.json();
+                            return { ...msg, mediaUrl: data.url };
+                        } catch (e) {
+                            console.error('Erreur chargement media :', msg.mediaUrl, e);
+                            return msg; // on garde le message sans l'url enrichie
+                        }
+                    } else {
+                        return msg;
+                    }
+                })
+            );
+
+            setMessages(enrichedMessages);
         } catch (error) {
             console.error('Erreur lors du chargement des messages:', error);
         } finally {
@@ -127,10 +171,57 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
     };
 
     const handleSendImage = () => {
-        // À implémenter : utiliser une bibliothèque pour upload d'image
-        console.log('Envoi d\'image à implémenter');
+        fileInputRef.current?.click();
     };
 
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        console.log('Fichier sélectionné :', file.name, file.type);
+
+        const fileType = file.type.startsWith('image') ? 'image' :
+            file.type.startsWith('video') ? 'video' :
+                null;
+
+        if (!fileType) {
+            console.warn('Type de fichier non supporté :', file.type);
+            return;
+        }
+
+        try {
+            const media: { key: string } = await uploadFile(file); // tu as déjà cette fonction
+            ChatService.sendMessage(conversationId, '', fileType, media.key); // ou media.filename si tu gères via GET /api/media/:filename
+        } catch (err) {
+            console.error('Erreur lors de l\'envoi du fichier', err);
+        } finally {
+            event.target.value = ''; // Réinitialise l’input pour permettre une sélection du même fichier à nouveau
+        }
+    };
+
+    const uploadFile = async (file: File): Promise<{ key: string }> => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('http://localhost:3002/api/media', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${AuthService.getToken()!}` // adapte selon où tu stockes le token
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Erreur lors de l\'upload');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Erreur upload fichier :', error);
+            throw error;
+        }
+    };
 
     const handleTextareaChange = (e: any) => {
         const value = e.detail.value || '';
@@ -244,6 +335,14 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
                     </IonButton>
                 </div>
             </IonFooter>
+
+            <input
+                type="file"
+                accept="image/*,video/*"
+                style={{ display: 'none' }}
+                ref={fileInputRef}
+                onChange={handleFileChange}
+            />
         </>
     );
 };
