@@ -112,18 +112,6 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
     const handleSendMessage = () => {
         if (!newMessage.trim()) return;
 
-        // const localMessage: Message = {
-        //     id: -1, // ID temporaire
-        //     conversationId: conversationId,
-        //     senderId: userId,
-        //     type: 'text',
-        //     content: newMessage.trim(),
-        //     timestamp: new Date(),
-        //     isRead: false
-        // };
-        //
-        // setMessages(prevMessages => [...prevMessages, localMessage]);
-
         setNewMessage('');
 
         if (isTyping) {
