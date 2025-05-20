@@ -16,8 +16,9 @@ import {
     IonBackButton,
     IonButtons
 } from '@ionic/react';
-import { personAddOutline, checkmarkOutline, closeOutline } from 'ionicons/icons';
-import FriendService, { User, FriendRequest } from '../../services/friend';
+import { personAddOutline, checkmarkOutline } from 'ionicons/icons';
+import FriendService, { User } from '../../services/friend';
+import { getProfilePicture, formatUsername } from '../../utils/userUtils';
 // import './FriendSearch.css';
 
 interface FriendSearchProps {
@@ -43,14 +44,13 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onBack }) => {
         setIsLoading(true);
         try {
             const results = await FriendService.searchUsers(query);
-            console.log('Résultats de la recherche:', results);
             setSearchResults(results);
 
             // Obtenir les demandes en attente pour savoir lesquelles sont déjà envoyées
             const pendingData = await FriendService.getPendingRequests();
             const newPendingRequests: { [key: number]: boolean } = {};
 
-            pendingData.sent.forEach((request : any) => {
+            pendingData.sent.forEach((request) => {
                 newPendingRequests[request.addresseeId] = true;
             });
 
@@ -88,7 +88,7 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onBack }) => {
             <IonHeader>
                 <IonToolbar>
                     <IonButtons slot="start">
-                        <IonBackButton defaultHref="#" />
+                        <IonBackButton defaultHref="#"  />
                     </IonButtons>
                     <IonTitle>Rechercher des amis</IonTitle>
                 </IonToolbar>
@@ -109,10 +109,10 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onBack }) => {
                         {searchResults.map(user => (
                             <IonItem key={user.id} className="user-item">
                                 <IonAvatar slot="start">
-                                    <img src={user.profilePicture || `https://i.pravatar.cc/150?u=${user.id}`} alt={user.name} />
+                                    <img src={getProfilePicture(user)} alt={user.name} />
                                 </IonAvatar>
                                 <IonLabel>
-                                    <h2>{user.name}</h2>
+                                    <h2>{formatUsername(user.username)}</h2>
                                     <p>@{user.username}</p>
                                 </IonLabel>
                                 {pendingRequests[user.id] ? (

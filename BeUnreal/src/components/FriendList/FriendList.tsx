@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     IonActionSheet,
     IonAvatar,
@@ -16,6 +16,8 @@ import {
     IonRefresher,
     IonRefresherContent,
     IonSearchbar,
+    IonSegment,
+    IonSegmentButton,
     IonSkeletonText,
     IonTitle,
     IonToast,
@@ -28,20 +30,26 @@ import {
     mailOutline,
     notificationsOutline,
     personAddOutline,
+    chatbubbleOutline,
+    peopleOutline,
     trashOutline
 } from 'ionicons/icons';
 import FriendService from '../../services/friend';
 import FriendSearch from '../FriendSearch/FriendSearch';
 import FriendRequests from '../FriendRequest/FriendRequest';
-import ChatService from '../../services/chat';
+import ChatService, { Conversation, Friend } from '../../services/chat';
 import ChatView from '../Layout/ChatView';
-import {Friend} from "../../types";
+import ConversationList from '../Layout/ConversationList';
+import { getProfilePicture, formatUsername } from '../../utils/userUtils';
+import {useAuth} from "../../contexts/AuthContext";
 // import './FriendsList.css';
 
 const FriendsList: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<'friends' | 'conversations'>('friends');
     const [searchText, setSearchText] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [friends, setFriends] = useState<Friend[]>([]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
     const [showActionSheet, setShowActionSheet] = useState(false);
     const [showToast, setShowToast] = useState(false);
@@ -50,38 +58,88 @@ const FriendsList: React.FC = () => {
     const [showRequestsModal, setShowRequestsModal] = useState(false);
     const [showChatModal, setShowChatModal] = useState(false);
     const [selectedConversation, setSelectedConversation] = useState<{ id: number, name?: string } | null>(null);
-    const currentUserId = parseInt(localStorage.getItem('userId') || '0');
+    const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+    const { authState } = useAuth()
+    const currentUserId = Number(authState.user?.id);
 
     useEffect(() => {
-        loadFriends();
+        ChatService.initializeSocket();
+
+        loadInitialData();
+
+        return () => {
+            ChatService.disconnectSocket();
+        };
     }, []);
 
-    const loadFriends = async () => {
+    const loadInitialData = async () => {
         setIsLoading(true);
         try {
-            const friendsList: Friend[] = await FriendService.getFriends();
-            setFriends(friendsList);
+            await Promise.all([
+                loadFriends(),
+                loadConversations(),
+                loadPendingRequests()
+            ]);
         } catch (error) {
-            console.error('Erreur lors du chargement des amis:', error);
-            showToastMessage('Erreur lors du chargement des amis');
+            console.error('Erreur lors du chargement des données initiales:', error);
+            showToastMessage('Erreur lors du chargement des données');
         } finally {
             setIsLoading(false);
         }
     };
 
-    console.log("friends", friends)
+    const loadFriends = async () => {
+        try {
+            const friendsList = await FriendService.getFriends();
+            setFriends(friendsList);
+            return friendsList;
+        } catch (error) {
+            console.error('Erreur lors du chargement des amis:', error);
+            showToastMessage('Erreur lors du chargement des amis');
+            throw error;
+        }
+    };
 
-    const handleRefresh = (event: CustomEvent) => {
-        loadFriends().then(() => {
+    const loadConversations = async () => {
+        try {
+            const conversationsList = await ChatService.getUserConversations();
+            setConversations(conversationsList);
+            return conversationsList;
+        } catch (error) {
+            console.error('Erreur lors du chargement des conversations:', error);
+            showToastMessage('Erreur lors du chargement des conversations');
+            throw error;
+        }
+    };
+
+    const loadPendingRequests = async () => {
+        try {
+            const requests = await FriendService.getPendingRequests();
+            setPendingRequestsCount(requests.received.length);
+            return requests;
+        } catch (error) {
+            console.error('Erreur lors du chargement des demandes en attente:', error);
+            throw error;
+        }
+    };
+
+    const handleRefresh = async (event: CustomEvent) => {
+        try {
+            await loadInitialData();
+        } catch (error) {
+            console.error('Erreur lors du rafraîchissement:', error);
+        } finally {
             event.detail.complete();
-        });
+        }
     };
 
     const handleFriendAction = (userId: number) => {
         const friend = friends.find((friend) => friend.id === userId);
-        console.log("user id not found in friends", userId, friends);
-        if (!friend) return;
-        console.log("friend", friend)
+        if (!friend) {
+            console.log("User ID not found in friends", userId, friends);
+            return;
+        }
+        console.log("friend", friend);
         setSelectedFriend(friend);
         setShowActionSheet(true);
     };
@@ -92,7 +150,7 @@ const FriendsList: React.FC = () => {
             const conversation = await ChatService.createOrGetConversation(friend.id);
             setSelectedConversation({
                 id: conversation.id,
-                name: `Utilisateur ${friend.username}` // Dans une app réelle, vous utiliseriez le nom de l'utilisateur
+                name: formatUsername(friend.username)
             });
             setShowChatModal(true);
         } catch (error) {
@@ -103,13 +161,32 @@ const FriendsList: React.FC = () => {
         }
     };
 
+    const handleOpenExistingChat = (conversation: Conversation) => {
+        let name = conversation.name;
+        if (!conversation.isGroup) {
+            const participant = conversation.participants.find(p => p.userId !== currentUserId);
+            if (participant) {
+                const friend = friends.find(f => f.id === participant.userId);
+                if (friend) {
+                    name = formatUsername(friend.username);
+                }
+            }
+        }
+
+        setSelectedConversation({
+            id: conversation.id,
+            name: name
+        });
+        setShowChatModal(true);
+    };
+
     const handleRemoveFriend = async () => {
         if (!selectedFriend) return;
 
         setIsLoading(true);
         try {
             await FriendService.removeFriend(selectedFriend);
-            setFriends(prev => prev.filter(id => id !== selectedFriend));
+            setFriends(prev => prev.filter(friend => friend.id !== selectedFriend.id));
             showToastMessage('Ami supprimé');
         } catch (error) {
             console.error('Erreur lors de la suppression de l\'ami:', error);
@@ -126,7 +203,7 @@ const FriendsList: React.FC = () => {
         setIsLoading(true);
         try {
             await FriendService.blockUser(selectedFriend);
-            setFriends(prev => prev.filter(id => id !== selectedFriend));
+            setFriends(prev => prev.filter(friend => friend.id !== selectedFriend.id));
             showToastMessage('Utilisateur bloqué');
         } catch (error) {
             console.error('Erreur lors du blocage de l\'utilisateur:', error);
@@ -142,34 +219,70 @@ const FriendsList: React.FC = () => {
         setShowToast(true);
     };
 
-    const filteredFriends: Friend[]  = friends.filter(friend => {
-        // Dans une app réelle, vous filtreriez par nom/pseudo d'utilisateur
-        // return friend.toString().includes(searchText);
+    const handleModalClose = () => {
+        loadInitialData();
+    };
+
+    const filteredFriends = friends.filter(friend => {
         return friend.username.toLowerCase().includes(searchText.toLowerCase());
+    });
+
+    const filteredConversations = conversations.filter(conversation => {
+        if (conversation.name) {
+            return conversation.name.toLowerCase().includes(searchText.toLowerCase());
+        }
+
+        if (!conversation.isGroup) {
+            const participant = conversation.participants.find(p => p.userId !== currentUserId);
+            if (participant) {
+                const friend = friends.find(f => f.id === participant.userId);
+                if (friend) {
+                    return friend.username.toLowerCase().includes(searchText.toLowerCase());
+                }
+            }
+        }
+
+        return false;
     });
 
     return (
         <IonPage>
             <IonContent>
-                <div className="friends-container">
+                <div className="container">
                     <IonHeader>
                         <IonToolbar>
-                            <IonTitle>Mes Amis</IonTitle>
-                            <div className="ion-buttons ion-buttons-end">
+                            <IonTitle>BeUnreal</IonTitle>
+                            <div className="ion-buttons ion-buttons-end" slot="end">
                                 <IonButton onClick={() => setShowRequestsModal(true)}>
                                     <IonIcon icon={notificationsOutline} />
-                                    {/* Badge pour les demandes en attente */}
+                                    {pendingRequestsCount > 0 && (
+                                        <span className="badge">{pendingRequestsCount}</span>
+                                    )}
                                 </IonButton>
                                 <IonButton onClick={() => setShowSearchModal(true)}>
                                     <IonIcon icon={personAddOutline} />
                                 </IonButton>
                             </div>
                         </IonToolbar>
+
+                        <IonToolbar>
+                            <IonSegment value={activeTab} onIonChange={e => setActiveTab(e.detail.value as 'friends' | 'conversations')}>
+                                <IonSegmentButton value="friends">
+                                    <IonIcon icon={peopleOutline} />
+                                    <IonLabel>Amis</IonLabel>
+                                </IonSegmentButton>
+                                <IonSegmentButton value="conversations">
+                                    <IonIcon icon={chatbubbleOutline} />
+                                    <IonLabel>Messages</IonLabel>
+                                </IonSegmentButton>
+                            </IonSegment>
+                        </IonToolbar>
+
                         <IonToolbar>
                             <IonSearchbar
                                 value={searchText}
                                 onIonChange={e => setSearchText(e.detail.value || '')}
-                                placeholder="Rechercher des amis"
+                                placeholder={activeTab === 'friends' ? "Rechercher des amis" : "Rechercher des conversations"}
                                 animated
                                 className="custom-searchbar"
                             />
@@ -180,69 +293,82 @@ const FriendsList: React.FC = () => {
                         <IonRefresherContent></IonRefresherContent>
                     </IonRefresher>
 
-                    {isLoading ? (
-                        <div className="skeleton-container">
-                            {[...Array(5)].map((_, i) => (
-                                <div className="skeleton-item" key={i}>
-                                    <div className="skeleton-avatar">
-                                        <IonSkeletonText animated />
-                                    </div>
-                                    <div className="skeleton-text">
-                                        <IonSkeletonText animated style={{ width: '60%' }} />
-                                        <IonSkeletonText animated style={{ width: '80%' }} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
+                    {activeTab === 'friends' ? (
                         <>
-                            {friends.length > 0 ? (
-                                <IonList className="friends-list">
-                                    {friends.map((friend : Friend, index : number) => (
-                                        <IonItem key={index} className="friend-item">
-                                            <IonAvatar slot="start" className="friend-avatar">
-                                                <img src={`https://i.pravatar.cc/150?u=${friend.profilePicture}`} alt={`Ami ${friend.username}`} />
-                                            </IonAvatar>
-                                            <IonLabel>
-                                                <h2>Utilisateur {friend.username}</h2>
-                                                <p>Statut: En ligne</p>
-                                            </IonLabel>
-                                            <IonButton fill="clear" onClick={() => handleStartChat(friend)}>
-                                                <IonIcon icon={mailOutline} slot="icon-only" />
-                                            </IonButton>
-                                            <IonButton fill="clear" onClick={() => handleFriendAction(friend.id)}>
-                                                <IonIcon icon={ellipsisVertical} slot="icon-only" />
-                                            </IonButton>
-                                        </IonItem>
+                            {isLoading ? (
+                                <div className="skeleton-container">
+                                    {[...Array(5)].map((_, i) => (
+                                        <div className="skeleton-item" key={i}>
+                                            <div className="skeleton-avatar">
+                                                <IonSkeletonText animated />
+                                            </div>
+                                            <div className="skeleton-text">
+                                                <IonSkeletonText animated style={{ width: '60%' }} />
+                                                <IonSkeletonText animated style={{ width: '80%' }} />
+                                            </div>
+                                        </div>
                                     ))}
-                                </IonList>
-                            ) : (
-                                <div className="no-results">
-                                    <div className="no-results-icon">
-                                        <IonIcon icon={personAddOutline} />
-                                    </div>
-                                    <h3>Aucun ami trouvé</h3>
-                                    <p>Commencez à ajouter des amis</p>
-                                    <IonButton onClick={() => setShowSearchModal(true)}>
-                                        Rechercher des amis
-                                    </IonButton>
                                 </div>
+                            ) : (
+                                <>
+                                    {filteredFriends.length > 0 ? (
+                                        <IonList className="friends-list">
+                                            {filteredFriends.map((friend: Friend, index: number) => (
+                                                <IonItem key={index} className="friend-item">
+                                                    <IonAvatar slot="start" className="friend-avatar">
+                                                        <img src={getProfilePicture(friend)} alt={`Ami ${friend.username}`} />
+                                                    </IonAvatar>
+                                                    <IonLabel>
+                                                        <h2>{formatUsername(friend.username)}</h2>
+                                                        <p>@{friend.username}</p>
+                                                    </IonLabel>
+                                                    <IonButton fill="clear" onClick={() => handleStartChat(friend)}>
+                                                        <IonIcon icon={mailOutline} slot="icon-only" />
+                                                    </IonButton>
+                                                    <IonButton fill="clear" onClick={() => handleFriendAction(friend.id)}>
+                                                        <IonIcon icon={ellipsisVertical} slot="icon-only" />
+                                                    </IonButton>
+                                                </IonItem>
+                                            ))}
+                                        </IonList>
+                                    ) : (
+                                        <div className="no-results">
+                                            <div className="no-results-icon">
+                                                <IonIcon icon={personAddOutline} />
+                                            </div>
+                                            <h3>Aucun ami trouvé</h3>
+                                            <p>Commencez à ajouter des amis</p>
+                                            <IonButton onClick={() => setShowSearchModal(true)}>
+                                                Rechercher des amis
+                                            </IonButton>
+                                        </div>
+                                    )}
+                                </>
                             )}
+
+                            <IonFab vertical="bottom" horizontal="end" slot="fixed">
+                                <IonFabButton color="primary" onClick={() => setShowSearchModal(true)}>
+                                    <IonIcon icon={addOutline} />
+                                </IonFabButton>
+                            </IonFab>
                         </>
+                    ) : (
+                        // Onglet conversations
+                        <ConversationList
+                            conversations={filteredConversations}
+                            friends={friends}
+                            isLoading={isLoading}
+                            currentUserId={currentUserId}
+                            onOpenChat={handleOpenExistingChat}
+                        />
                     )}
 
-                    <IonFab vertical="bottom" horizontal="end" slot="fixed">
-                        <IonFabButton color="primary" onClick={() => setShowSearchModal(true)}>
-                            <IonIcon icon={addOutline} />
-                        </IonFabButton>
-                    </IonFab>
-
                     {/* Modals */}
-                    <IonModal isOpen={showSearchModal} onDidDismiss={() => setShowSearchModal(false)}>
+                    <IonModal isOpen={showSearchModal} onDidDismiss={() => { setShowSearchModal(false); handleModalClose(); }}>
                         <FriendSearch onBack={() => setShowSearchModal(false)} />
                     </IonModal>
 
-                    <IonModal isOpen={showRequestsModal} onDidDismiss={() => setShowRequestsModal(false)}>
+                    <IonModal isOpen={showRequestsModal} onDidDismiss={() => { setShowRequestsModal(false); handleModalClose(); }}>
                         <FriendRequests onBack={() => setShowRequestsModal(false)} />
                     </IonModal>
 

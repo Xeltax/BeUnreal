@@ -1,26 +1,22 @@
-import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
+import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api/messages';
+export interface Friend {
+    id: number;
+    username: string;
+    profilePicture?: string;
+}
 
-interface Conversation {
+export interface Conversation {
     id: number;
     isGroup: boolean;
     name?: string;
     lastMessageAt: Date;
-    participants: {
-        userId: number;
-    }[];
-    messages: {
-        id: number;
-        senderId: number;
-        content: string;
-        timestamp: Date;
-        isRead: boolean;
-    }[];
+    participants: { userId: number }[];
+    messages: Message[];
 }
 
-interface Message {
+export interface Message {
     id: number;
     conversationId: number;
     senderId: number;
@@ -32,23 +28,72 @@ interface Message {
 }
 
 class ChatService {
+    private static instance: ChatService;
     private socket: Socket | null = null;
-    private token: string | null = null;
+    private API_URL = 'http://localhost:3001/api/messages';
+    private messageListeners: Map<number, ((message: Message) => void)[]> = new Map();
+    private typingListeners: Map<number, ((userId: number, isTyping: boolean) => void)[]> = new Map();
 
-    constructor() {
-        this.token = localStorage.getItem('token');
-    }
+    private constructor() {}
 
-    connectSocket(): Socket {
-        if (!this.socket) {
-            this.socket = io('http://localhost:3001', {
-                auth: { token: this.token }
-            });
+    static getInstance(): ChatService {
+        if (!ChatService.instance) {
+            ChatService.instance = new ChatService();
         }
-        return this.socket;
+        return ChatService.instance;
     }
 
-    disconnectSocket() {
+    initializeSocket(): void {
+        if (this.socket?.connected) {
+            return;
+        }
+
+        const token = localStorage.getItem('beunreal_token');
+
+        if (!token) {
+            console.error('No token found, cannot initialize socket');
+            return;
+        }
+
+        if (this.socket) {
+            this.socket.disconnect();
+        }
+
+        this.socket = io('http://localhost:3001', {
+            auth: { token },
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+
+        this.socket.on('connect', () => {
+            console.log('Socket connected');
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Socket disconnected');
+        });
+
+        this.socket.on('newMessage', (data: { conversationId: number, message: Message }) => {
+            const listeners = this.messageListeners.get(data.conversationId) || [];
+            listeners.forEach(listener => listener(data.message));
+        });
+
+        this.socket.on('userTyping', (data: { conversationId: number, userId: number, isTyping: boolean }) => {
+            const listeners = this.typingListeners.get(data.conversationId) || [];
+            listeners.forEach(listener => listener(data.userId, data.isTyping));
+        });
+
+        this.socket.on('error', (error: string) => {
+            console.error('Socket error:', error);
+        });
+
+        this.socket.on('connect_error', (error: any) => {
+            console.error('Socket connection error:', error);
+        });
+    }
+
+    disconnectSocket(): void {
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
@@ -57,79 +102,115 @@ class ChatService {
 
     async getUserConversations(): Promise<Conversation[]> {
         try {
-            const response = await axios.get(`${API_URL}/conversations`, {
-                headers: { Authorization: `Bearer ${this.token}` }
+            const token = localStorage.getItem('beunreal_token');
+            const response = await axios.get(`${this.API_URL}/conversations`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
             return response.data;
         } catch (error) {
-            console.error('Erreur lors de la récupération des conversations:', error);
+            console.error('Erreur lors de la récupération des conversations :', error);
+            throw error;
+        }
+    }
+
+    async createOrGetConversation(friendId: number): Promise<Conversation> {
+        try {
+            const token = localStorage.getItem('beunreal_token');
+            const response = await axios.post(`${this.API_URL}/conversation`,
+                { userId: friendId },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Erreur lors de la création de la conversation :', error);
             throw error;
         }
     }
 
     async getConversationMessages(conversationId: number): Promise<Message[]> {
         try {
-            const response = await axios.get(`${API_URL}/conversation/${conversationId}`, {
-                headers: { Authorization: `Bearer ${this.token}` }
+            const token = localStorage.getItem('beunreal_token');
+            const response = await axios.get(`${this.API_URL}/conversation/${conversationId}`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
             return response.data;
         } catch (error) {
-            console.error('Erreur lors de la récupération des messages:', error);
+            console.error('Erreur lors de la récupération des messages :', error);
             throw error;
         }
     }
 
-    async createOrGetConversation(userId: number): Promise<Conversation> {
-        try {
-            const response = await axios.post(`${API_URL}/conversation`,
-                { userId },
-                { headers: { Authorization: `Bearer ${this.token}` } }
-            );
-            return response.data;
-        } catch (error) {
-            console.error('Erreur lors de la création de la conversation:', error);
-            throw error;
+    // Méthodes pour les messages
+    sendMessage(conversationId: number, content: string, type: 'text' | 'image' | 'video' = 'text', mediaUrl?: string): void {
+        if (!this.socket) {
+            console.error('Socket not initialized');
+            return;
+        }
+
+        this.socket.emit('message', {
+            conversationId,
+            message: {
+                type,
+                content,
+                mediaUrl
+            }
+        });
+    }
+
+    markAsRead(conversationId: number, messageId: number): void {
+        if (!this.socket) {
+            console.error('Socket not initialized');
+            return;
+        }
+
+        this.socket.emit('markAsRead', {
+            conversationId,
+            messageId
+        });
+    }
+
+    sendTypingStatus(conversationId: number, isTyping: boolean): void {
+        if (!this.socket) {
+            console.error('Socket not initialized');
+            return;
+        }
+
+        this.socket.emit('typing', {
+            conversationId,
+            isTyping
+        });
+    }
+
+    // Méthodes pour ajouter/supprimer des écouteurs d'événements
+    addMessageListener(conversationId: number, listener: (message: Message) => void): void {
+        const listeners = this.messageListeners.get(conversationId) || [];
+        listeners.push(listener);
+        this.messageListeners.set(conversationId, listeners);
+    }
+
+    removeMessageListener(conversationId: number, listener: (message: Message) => void): void {
+        const listeners = this.messageListeners.get(conversationId) || [];
+        const index = listeners.indexOf(listener);
+        if (index !== -1) {
+            listeners.splice(index, 1);
+            this.messageListeners.set(conversationId, listeners);
         }
     }
 
-    async createGroupConversation(name: string, userIds: number[]): Promise<Conversation> {
-        try {
-            const response = await axios.post(`${API_URL}/group`,
-                { name, userIds },
-                { headers: { Authorization: `Bearer ${this.token}` } }
-            );
-            return response.data;
-        } catch (error) {
-            console.error('Erreur lors de la création du groupe:', error);
-            throw error;
-        }
+    addTypingListener(conversationId: number, listener: (userId: number, isTyping: boolean) => void): void {
+        const listeners = this.typingListeners.get(conversationId) || [];
+        listeners.push(listener);
+        this.typingListeners.set(conversationId, listeners);
     }
 
-    async sendTextMessage(conversationId: number, content: string): Promise<Message> {
-        try {
-            const response = await axios.post(`${API_URL}/text`,
-                { conversationId, content },
-                { headers: { Authorization: `Bearer ${this.token}` } }
-            );
-            return response.data;
-        } catch (error) {
-            console.error('Erreur lors de l\'envoi du message:', error);
-            throw error;
-        }
-    }
-
-    async sendMediaMessage(conversationId: number, type: 'image' | 'video', mediaUrl: string, content?: string): Promise<Message> {
-        try {
-            const response = await axios.post(`${API_URL}/media`,
-                { conversationId, type, mediaUrl, content },
-                { headers: { Authorization: `Bearer ${this.token}` } }
-            );
-            return response.data;
-        } catch (error) {
-            console.error('Erreur lors de l\'envoi du média:', error);
-            throw error;
+    removeTypingListener(conversationId: number, listener: (userId: number, isTyping: boolean) => void): void {
+        const listeners = this.typingListeners.get(conversationId) || [];
+        const index = listeners.indexOf(listener);
+        if (index !== -1) {
+            listeners.splice(index, 1);
+            this.typingListeners.set(conversationId, listeners);
         }
     }
 }
 
-export default new ChatService();
+export default ChatService.getInstance();

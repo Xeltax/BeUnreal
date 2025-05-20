@@ -28,6 +28,6 @@ export interface RegisterCredentials {
 
 export interface Friend {
     id : number
-    profilePicture: string
+    profilePicture?: string
     username : string
 }

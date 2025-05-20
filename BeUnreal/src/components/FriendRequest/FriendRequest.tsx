@@ -19,6 +19,7 @@ import {
 } from '@ionic/react';
 import { checkmarkOutline, closeOutline } from 'ionicons/icons';
 import FriendService, { FriendRequest } from '../../services/friend';
+import { getProfilePicture } from '../../utils/userUtils';
 // import './FriendRequests.css';
 
 interface FriendRequestsProps {
@@ -106,9 +107,9 @@ const FriendRequests: React.FC<FriendRequestsProps> = ({ onBack }) => {
     };
 
     // Formatage de la date
-    const formatDate = (date: Date): string => {
-        const d = new Date(date);
-        return d.toLocaleDateString(undefined, {
+    const formatDate = (dateStr: Date): string => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString(undefined, {
             day: 'numeric',
             month: 'short',
             year: 'numeric'

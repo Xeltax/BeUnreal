@@ -118,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = async (credentials: LoginCredentials) => {
         try {
             const user = await AuthService.login(credentials);
+            console.log(user)
             dispatch({ type: 'LOGIN_SUCCESS', payload: user });
         } catch (error: any) {
             dispatch({

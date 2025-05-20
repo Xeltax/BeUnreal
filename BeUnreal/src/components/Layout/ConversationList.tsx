@@ -1,92 +1,45 @@
-import React, {useEffect, useState} from 'react';
+import React from 'react';
 import {
     IonAvatar,
     IonBadge,
-    IonButton,
-    IonContent,
     IonFab,
     IonFabButton,
-    IonHeader,
     IonIcon,
     IonItem,
     IonLabel,
     IonList,
-    IonModal,
-    IonPage,
-    IonRefresher,
-    IonRefresherContent,
-    IonSearchbar,
-    IonSegment,
-    IonSegmentButton,
-    IonSkeletonText,
-    IonTitle,
-    IonToolbar,
+    IonSkeletonText
 } from '@ionic/react';
-import {addOutline, chatbubbleOutline, notificationsOutline, peopleOutline, personAddOutline} from 'ionicons/icons';
-import ChatService from '../../services/chat';
-import ChatView from './ChatView';
+import { addOutline } from 'ionicons/icons';
+import { Conversation, Friend } from '../../services/chat';
+import { getProfilePicture, formatUsername } from '../../utils/userUtils';
 import '../../styles/ConversationList.css';
 
-interface Conversation {
-    id: number;
-    isGroup: boolean;
-    name?: string;
-    lastMessageAt: Date;
-    participants: {
-        userId: number;
-    }[];
-    messages: {
-        id: number;
-        senderId: number;
-        content: string;
-        timestamp: Date;
-        isRead: boolean;
-    }[];
+interface ConversationListProps {
+    conversations: Conversation[];
+    friends: Friend[];
+    isLoading: boolean;
+    currentUserId: number;
+    onOpenChat: (conversation: Conversation) => void;
 }
 
-const ConversationList: React.FC = () => {
-    const [searchText, setSearchText] = useState('');
-    const [segment, setSegment] = useState('all');
-    const [isLoading, setIsLoading] = useState(true);
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-    const currentUserId = parseInt(localStorage.getItem('userId') || '0');
-
-    useEffect(() => {
-        loadConversations();
-    }, []);
-
-    const loadConversations = async () => {
-        setIsLoading(true);
-        try {
-            const data = await ChatService.getUserConversations();
-            setConversations(data);
-        } catch (error) {
-            console.error('Erreur lors du chargement des conversations:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleRefresh = (event: CustomEvent) => {
-        loadConversations().then(() => {
-            event.detail.complete();
-        });
-    };
-
-    const filteredConversations = conversations.filter(conversation => {
-        const matchesSearch = conversation.name?.toLowerCase().includes(searchText.toLowerCase()) || false;
-        const hasUnreadMessages = conversation.messages.some(m => !m.isRead && m.senderId !== currentUserId);
-
-        const matchesSegment = segment === 'all' ||
-            (segment === 'unread' && hasUnreadMessages);
-
-        return matchesSearch || matchesSegment;
-    });
-
+const ConversationList: React.FC<ConversationListProps> = ({
+                                                               conversations,
+                                                               friends,
+                                                               isLoading,
+                                                               currentUserId,
+                                                               onOpenChat
+                                                           }) => {
     const getLastMessage = (conversation: Conversation) => {
         if (conversation.messages && conversation.messages.length > 0) {
-            return conversation.messages[0].content;
+            const lastMessage = conversation.messages[0];
+            if (lastMessage.type === 'text') {
+                return lastMessage.content;
+            } else if (lastMessage.type === 'image') {
+                return '📷 Image';
+            } else if (lastMessage.type === 'video') {
+                return '🎥 Vidéo';
+            }
         }
         return "Pas encore de message";
     };
@@ -108,135 +61,103 @@ const ConversationList: React.FC = () => {
         }
     };
 
-    const handleOpenChat = (conversation: Conversation) => {
-        setSelectedConversation(conversation);
-    };
-
-    const handleCloseChat = () => {
-        setSelectedConversation(null);
-        loadConversations(); // Recharger pour voir les nouveaux messages
-    };
-
     const hasUnreadMessages = (conversation: Conversation) => {
         return conversation.messages.some(m => !m.isRead && m.senderId !== currentUserId);
     };
 
+    const getConversationName = (conversation: Conversation): string => {
+        if (conversation.name) {
+            return conversation.name;
+        }
+
+        if (!conversation.isGroup) {
+            const participant = conversation.participants.find(p => p.userId !== currentUserId);
+            if (participant) {
+                const friend = friends.find(f => f.id === participant.userId);
+                if (friend) {
+                    return formatUsername(friend.username);
+                }
+            }
+        }
+
+        return "Conversation";
+    };
+
+    const getConversationAvatar = (conversation: Conversation): string => {
+        if (!conversation.isGroup) {
+            const participant = conversation.participants.find(p => p.userId !== currentUserId);
+            if (participant) {
+                const friend = friends.find(f => f.id === participant.userId);
+                if (friend) {
+                    return getProfilePicture(friend);
+                }
+            }
+        }
+
+        // Pour les groupes ou quand l'ami n'est pas trouvé
+        return `https://i.pravatar.cc/150?u=${conversation.id}`;
+    };
+
     return (
-        <IonPage>
-            <IonContent>
-                <div className="conversations-container">
-                    <IonHeader>
-                        <IonToolbar>
-                            <IonTitle>Messages</IonTitle>
-                            <div className="ion-buttons ion-buttons-end" slot="end">
-                                <IonButton>
-                                    <IonIcon icon={notificationsOutline} />
-                                    {conversations.filter(c => hasUnreadMessages(c)).length > 0 && (
-                                        <IonBadge color="primary" className="notification-badge">
-                                            {conversations.filter(c => hasUnreadMessages(c)).length}
-                                        </IonBadge>
-                                    )}
-                                </IonButton>
-                                <IonButton>
-                                    <IonIcon icon={personAddOutline} />
-                                </IonButton>
+        <div className="conversations-container">
+            {isLoading ? (
+                <div className="skeleton-container">
+                    {[...Array(5)].map((_, i) => (
+                        <div className="skeleton-item" key={i}>
+                            <div className="skeleton-avatar">
+                                <IonSkeletonText animated />
                             </div>
-                        </IonToolbar>
-                        <IonToolbar>
-                            <IonSearchbar
-                                value={searchText}
-                                onIonChange={e => setSearchText(e.detail.value || '')}
-                                placeholder="Rechercher des conversations"
-                                animated
-                                className="custom-searchbar"
-                            />
-                        </IonToolbar>
-                        <IonToolbar>
-                            {/*// @ts-ignore*/}
-                            <IonSegment value={segment} onIonChange={e => setSegment(e.detail.value || 'all')}>
-                                <IonSegmentButton value="all">
-                                    <IonIcon icon={peopleOutline} />
-                                    <IonLabel>Toutes</IonLabel>
-                                </IonSegmentButton>
-                                <IonSegmentButton value="unread">
-                                    <IonIcon icon={chatbubbleOutline} />
-                                    <IonLabel>Non lues</IonLabel>
-                                </IonSegmentButton>
-                            </IonSegment>
-                        </IonToolbar>
-                    </IonHeader>
-
-                    <IonContent className="conversations-content">
-                        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-                            <IonRefresherContent></IonRefresherContent>
-                        </IonRefresher>
-
-                        {isLoading ? (
-                            <div className="skeleton-container">
-                                {[...Array(5)].map((_, i) => (
-                                    <div className="skeleton-item" key={i}>
-                                        <div className="skeleton-avatar">
-                                            <IonSkeletonText animated />
-                                        </div>
-                                        <div className="skeleton-text">
-                                            <IonSkeletonText animated style={{ width: '60%' }} />
-                                            <IonSkeletonText animated style={{ width: '80%' }} />
-                                        </div>
-                                    </div>
-                                ))}
+                            <div className="skeleton-text">
+                                <IonSkeletonText animated style={{ width: '60%' }} />
+                                <IonSkeletonText animated style={{ width: '80%' }} />
                             </div>
-                        ) : (
-                            <>
-                                {filteredConversations.length > 0 ? (
-                                    <IonList className="conversations-list">
-                                        {filteredConversations.map(conversation => (
-                                            <IonItem key={conversation.id} className="conversation-item" detail={false} button onClick={() => handleOpenChat(conversation)}>
-                                                <IonAvatar slot="start" className="conversation-avatar">
-                                                    <img src={`https://i.pravatar.cc/150?u=${conversation.id}`} alt={conversation.name} />
-                                                </IonAvatar>
-                                                <IonLabel>
-                                                    <h2>{conversation.name || 'Discussion'}</h2>
-                                                    <p className="message-preview">{getLastMessage(conversation)}</p>
-                                                    <p className="time-preview">{formatLastMessageTime(new Date(conversation.lastMessageAt))}</p>
-                                                </IonLabel>
-                                                {hasUnreadMessages(conversation) && (
-                                                    <div className="message-indicator" slot="end"></div>
-                                                )}
-                                            </IonItem>
-                                        ))}
-                                    </IonList>
-                                ) : (
-                                    <div className="no-results">
-                                        <div className="no-results-icon">
-                                            <IonIcon icon={peopleOutline} />
-                                        </div>
-                                        <h3>Aucune conversation trouvée</h3>
-                                        <p>Commencez à discuter avec vos amis</p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </IonContent>
-
-                    <IonFab vertical="bottom" horizontal="end" slot="fixed">
-                        <IonFabButton color="primary">
-                            <IonIcon icon={addOutline} />
-                        </IonFabButton>
-                    </IonFab>
-
-                    <IonModal isOpen={!!selectedConversation} onDidDismiss={handleCloseChat}>
-                        {selectedConversation && (
-                            <ChatView
-                                conversationId={selectedConversation.id}
-                                userId={currentUserId}
-                                onBack={handleCloseChat}
-                                conversationName={selectedConversation.name}
-                            />
-                        )}
-                    </IonModal>
+                        </div>
+                    ))}
                 </div>
-            </IonContent>
-        </IonPage>
+            ) : (
+                <>
+                    {conversations.length > 0 ? (
+                        <IonList className="conversations-list">
+                            {conversations.map(conversation => (
+                                <IonItem
+                                    key={conversation.id}
+                                    className="conversation-item"
+                                    detail={false}
+                                    button
+                                    onClick={() => onOpenChat(conversation)}
+                                >
+                                    <IonAvatar slot="start" className="conversation-avatar">
+                                        <img src={getConversationAvatar(conversation)} alt={getConversationName(conversation)} />
+                                    </IonAvatar>
+                                    <IonLabel>
+                                        <h2>{getConversationName(conversation)}</h2>
+                                        <p className="message-preview">{getLastMessage(conversation)}</p>
+                                        <p className="time-preview">{formatLastMessageTime(new Date(conversation.lastMessageAt))}</p>
+                                    </IonLabel>
+                                    {hasUnreadMessages(conversation) && (
+                                        <div className="message-indicator" slot="end"></div>
+                                    )}
+                                </IonItem>
+                            ))}
+                        </IonList>
+                    ) : (
+                        <div className="no-results">
+                            <div className="no-results-icon">
+                                <IonIcon icon={addOutline} />
+                            </div>
+                            <h3>Aucune conversation trouvée</h3>
+                            <p>Commencez à discuter avec vos amis</p>
+                        </div>
+                    )}
+                </>
+            )}
+
+            <IonFab vertical="bottom" horizontal="end" slot="fixed">
+                <IonFabButton color="primary">
+                    <IonIcon icon={addOutline} />
+                </IonFabButton>
+            </IonFab>
+        </div>
     );
 };
 

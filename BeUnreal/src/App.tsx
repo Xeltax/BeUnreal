@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {Redirect, Route} from 'react-router-dom';
 import {IonApp, IonRouterOutlet, setupIonicReact} from '@ionic/react';
 import {IonReactRouter} from '@ionic/react-router';
@@ -24,6 +24,7 @@ import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
 import './theme/variables.css';
 import './styles/App.css';
+import ChatService from './services/chat';
 
 setupIonicReact();
 
@@ -45,6 +46,15 @@ const PrivateRoute: React.FC<{
 };
 
 const App: React.FC = () => {
+
+    useEffect(() => {
+        ChatService.initializeSocket();
+
+        // Nettoyer la connexion socket lors du démontage
+        return () => {
+            ChatService.disconnectSocket();
+        };
+    }, []);
   return (
       <AuthProvider>
         <IonApp>

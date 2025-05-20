@@ -5,31 +5,19 @@ import {
     IonToolbar,
     IonTitle,
     IonFooter,
-    IonItem,
     IonTextarea,
     IonButton,
     IonIcon,
     IonAvatar,
-    IonList,
     IonSpinner,
     IonBackButton,
-    IonButtons
+    IonButtons,
+    IonList
 } from '@ionic/react';
 import { sendOutline, imageOutline, arrowBackOutline } from 'ionicons/icons';
-import { io, Socket } from 'socket.io-client';
-import axios from 'axios';
+import ChatService, { Message } from '../../services/chat';
+import { getProfilePicture } from '../../utils/userUtils';
 import '../../styles/ChatView.css';
-
-interface Message {
-    id: number;
-    conversationId: number;
-    senderId: number;
-    type: 'text' | 'image' | 'video';
-    content: string;
-    mediaUrl?: string;
-    timestamp: Date;
-    isRead: boolean;
-}
 
 interface ChatViewProps {
     conversationId: number;
@@ -42,131 +30,146 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    const [socket, setSocket] = useState<Socket | null>(null);
-    const [isTyping, setIsTyping] = useState(false);
     const [typingUsers, setTypingUsers] = useState<number[]>([]);
+    const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLIonContentElement>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Connexion à Socket.io au montage du composant
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        const socketInstance = io('http://localhost:3001', {
-            auth: { token }
-        });
+        loadMessages();
 
-        socketInstance.on('connect', () => {
-            console.log('Connected to socket server');
-        });
-
-        socketInstance.on('newMessage', (data: { conversationId: number, message: Message }) => {
-            if (data.conversationId === conversationId) {
-                setMessages(prevMessages => [...prevMessages, data.message]);
-
-                // Marquer le message comme lu si ce n'est pas le nôtre
-                if (data.message.senderId !== userId) {
-                    socketInstance.emit('markAsRead', {
-                        conversationId,
-                        messageId: data.message.id
-                    });
+        const messageListener = (message: Message) => {
+            setMessages(prevMessages => {
+                if (prevMessages.some(m => m.id === message.id)) {
+                    return prevMessages;
                 }
-            }
-        });
 
-        socketInstance.on('userTyping', (data: { conversationId: number, userId: number, isTyping: boolean }) => {
-            if (data.conversationId === conversationId) {
-                if (data.isTyping) {
-                    setTypingUsers(prev => [...prev.filter(id => id !== data.userId), data.userId]);
-                } else {
-                    setTypingUsers(prev => prev.filter(id => id !== data.userId));
+                if (message.senderId === userId && (!message.id || message.id <= 0)) {
+                    const isDuplicate = prevMessages.some(
+                        m => m.senderId === message.senderId &&
+                            m.content === message.content &&
+                            new Date(m.timestamp).getTime() > Date.now() - 2000
+                    );
+                    if (isDuplicate) {
+                        return prevMessages;
+                    }
                 }
-            }
-        });
 
-        setSocket(socketInstance);
+                return [...prevMessages, message];
+            });
+
+            if (message.senderId !== userId) {
+                ChatService.markAsRead(conversationId, message.id);
+            }
+        };
+
+        const typingListener = (typingUserId: number, isTyping: boolean) => {
+            if (typingUserId === userId) return;
+
+            if (isTyping) {
+                setTypingUsers(prev => [...prev.filter(id => id !== typingUserId), typingUserId]);
+            } else {
+                setTypingUsers(prev => prev.filter(id => id !== typingUserId));
+            }
+        };
+
+        ChatService.addMessageListener(conversationId, messageListener);
+        ChatService.addTypingListener(conversationId, typingListener);
 
         return () => {
-            socketInstance.disconnect();
+            ChatService.removeMessageListener(conversationId, messageListener);
+            ChatService.removeTypingListener(conversationId, typingListener);
+
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
         };
     }, [conversationId, userId]);
 
-    // Chargement des messages depuis l'API
     useEffect(() => {
-        const fetchMessages = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await axios.get(`http://localhost:3001/api/messages/conversation/${conversationId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setMessages(response.data);
-                setIsLoading(false);
-            } catch (error) {
-                console.error('Erreur lors du chargement des messages:', error);
-                setIsLoading(false);
-            }
-        };
+        scrollToBottom();
+    }, [messages, typingUsers]);
 
-        fetchMessages();
-    }, [conversationId]);
+    const loadMessages = async () => {
+        setIsLoading(true);
+        try {
+            const messagesList = await ChatService.getConversationMessages(conversationId);
+            setMessages(messagesList);
+        } catch (error) {
+            console.error('Erreur lors du chargement des messages:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    // Scroll automatique vers le dernier message
-    useEffect(() => {
+    const scrollToBottom = () => {
         if (messagesEndRef.current) {
             contentRef.current?.scrollToBottom(300);
         }
-    }, [messages]);
-
-    // Gérer l'envoi d'un message
-    const handleSendMessage = () => {
-        if (!newMessage.trim() || !socket) return;
-
-        // Envoyer via Socket.io
-        socket.emit('message', {
-            conversationId,
-            message: {
-                type: 'text',
-                content: newMessage.trim()
-            }
-        });
-
-        // Réinitialiser le champ de saisie
-        setNewMessage('');
-
-        // Indiquer qu'on ne tape plus
-        handleTyping(false);
     };
 
-    // Gérer l'envoi d'une image
+    const handleSendMessage = () => {
+        if (!newMessage.trim()) return;
+
+        // const localMessage: Message = {
+        //     id: -1, // ID temporaire
+        //     conversationId: conversationId,
+        //     senderId: userId,
+        //     type: 'text',
+        //     content: newMessage.trim(),
+        //     timestamp: new Date(),
+        //     isRead: false
+        // };
+        //
+        // setMessages(prevMessages => [...prevMessages, localMessage]);
+
+        setNewMessage('');
+
+        if (isTyping) {
+            setIsTyping(false);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+            }
+            ChatService.sendTypingStatus(conversationId, false);
+        }
+
+        ChatService.sendMessage(conversationId, newMessage.trim());
+    };
+
     const handleSendImage = () => {
         // À implémenter : utiliser une bibliothèque pour upload d'image
         console.log('Envoi d\'image à implémenter');
     };
 
-    // Gérer les événements de typing
-    const handleTyping = (isTyping: boolean) => {
-        if (socket) {
-            socket.emit('typing', {
-                conversationId,
-                isTyping
-            });
-        }
-    };
+
 
     const handleTextareaChange = (e: any) => {
         const value = e.detail.value || '';
         setNewMessage(value);
 
-        // Gérer les événements de saisie
-        if (value.length > 0 && !isTyping) {
-            setIsTyping(true);
-            handleTyping(true);
-        } else if (value.length === 0 && isTyping) {
-            setIsTyping(false);
-            handleTyping(false);
+        const shouldBeTyping = value.length > 0;
+
+        if (shouldBeTyping !== isTyping) {
+            setIsTyping(shouldBeTyping);
+            ChatService.sendTypingStatus(conversationId, shouldBeTyping);
+        }
+
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
+
+        if (shouldBeTyping) {
+            typingTimeoutRef.current = setTimeout(() => {
+                setIsTyping(false);
+                ChatService.sendTypingStatus(conversationId, false);
+                typingTimeoutRef.current = null;
+            }, 3000);
         }
     };
 
-    // Formater la date
     const formatMessageTime = (timestamp: Date) => {
         const date = new Date(timestamp);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -177,7 +180,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
             <IonHeader>
                 <IonToolbar>
                     <IonButtons slot="start">
-                        <IonBackButton defaultHref="#" />
+                        <IonBackButton defaultHref="#"  />
                     </IonButtons>
                     <IonTitle>{conversationName || 'Discussion'}</IonTitle>
                 </IonToolbar>
@@ -203,8 +206,10 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
                                 <div className="message-bubble">
                                     {message.type === 'text' ? (
                                         <p>{message.content}</p>
-                                    ) : (
+                                    ) : message.type === 'image' ? (
                                         <img src={message.mediaUrl} alt="media" className="message-media" />
+                                    ) : (
+                                        <video src={message.mediaUrl} controls className="message-media" />
                                     )}
                                     <span className="message-time">{formatMessageTime(message.timestamp)}</span>
                                 </div>

@@ -20,7 +20,6 @@ const MainTabs: React.FC = () => {
     return (
         <IonTabs>
             <IonRouterOutlet>
-                <Route exact path="/tabs/conv" component={ConversationList} />
                 <Route exact path="/tabs/friends" component={FriendList} />
                 {/*<Route exact path="/tabs/camera" component={CameraView} /> */}
                 <Route exact path="/tabs/discover" component={DiscoverView} />
@@ -33,11 +32,6 @@ const MainTabs: React.FC = () => {
                 <IonTabButton tab="map" href="/tabs/map">
                     <IonIcon icon={mapOutline} />
                     <IonLabel>Carte</IonLabel>
-                </IonTabButton>
-
-                <IonTabButton tab="conv" href="/tabs/conv">
-                    <IonIcon icon={peopleOutline} />
-                    <IonLabel>Conv</IonLabel>
                 </IonTabButton>
 
                 <IonTabButton tab="friends" href="/tabs/friends">
