@@ -37,8 +37,8 @@ const CameraView: React.FC = () => {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        startCamera();
-        getCurrentPosition();
+        startCamera().finally();
+        getCurrentPosition().finally();
 
         return () => {
             stopCamera();
@@ -84,7 +84,7 @@ const CameraView: React.FC = () => {
     const switchCamera = () => {
         setIsFrontCamera(!isFrontCamera);
         stopCamera();
-        startCamera();
+        startCamera().finally();
     };
 
     const getCurrentPosition = async () => {
@@ -171,8 +171,6 @@ const CameraView: React.FC = () => {
             console.error('Erreur lors de la sélection depuis la galerie:', error);
         }
     };
-
-    // TODO OUBLIE PAS DE TOUT METTRE DANS <IonPage><IonContent>LE CONTENU ICI</IonContent></IonPage> SINON LA NAVIGATION DANS LE MENU SERA BROKEN
 
     return (
         <IonPage>
