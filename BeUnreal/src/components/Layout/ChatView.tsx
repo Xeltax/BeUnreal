@@ -132,7 +132,6 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
     };
 
 
-
     const handleTextareaChange = (e: any) => {
         const value = e.detail.value || '';
         setNewMessage(value);

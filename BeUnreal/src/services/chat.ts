@@ -106,6 +106,8 @@ class ChatService {
             const response = await axios.get(`${this.API_URL}/conversations`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+
+            console.log('Conversations:', response.data);
             return response.data;
         } catch (error) {
             console.error('Erreur lors de la récupération des conversations :', error);
@@ -140,7 +142,20 @@ class ChatService {
         }
     }
 
-    // Méthodes pour les messages
+    async createGroupConversation(name: string, userIds: number[]): Promise<Conversation> {
+        try {
+            const token = localStorage.getItem('beunreal_token');
+            const response = await axios.post(`${this.API_URL}/group`,
+                { name, userIds },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Erreur lors de la création de la conversation de groupe :', error);
+            throw error;
+        }
+    }
+
     sendMessage(conversationId: number, content: string, type: 'text' | 'image' | 'video' = 'text', mediaUrl?: string): void {
         if (!this.socket) {
             console.error('Socket not initialized');
@@ -181,7 +196,6 @@ class ChatService {
         });
     }
 
-    // Méthodes pour ajouter/supprimer des écouteurs d'événements
     addMessageListener(conversationId: number, listener: (message: Message) => void): void {
         const listeners = this.messageListeners.get(conversationId) || [];
         listeners.push(listener);

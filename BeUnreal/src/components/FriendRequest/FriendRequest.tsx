@@ -53,6 +53,9 @@ const FriendRequests: React.FC<FriendRequestsProps> = ({ onBack }) => {
         }
     };
 
+    console.log("sentRequests", sentRequests);
+    console.log("receivedRequests", receivedRequests);
+
     // Accepter une demande d'ami
     const acceptRequest = async (requestId: number) => {
         setIsLoading(true);
@@ -148,7 +151,7 @@ const FriendRequests: React.FC<FriendRequestsProps> = ({ onBack }) => {
                                             <img src={`https://i.pravatar.cc/150?u=${request.requesterId}`} alt="avatar" />
                                         </IonAvatar>
                                         <IonLabel>
-                                            <h2>Demande de l'utilisateur {request.requesterId}</h2>
+                                            <h2>Demande de {request.requester.username}</h2>
                                             <p>Reçue le {formatDate(request.createdAt)}</p>
                                         </IonLabel>
                                         <IonButton fill="clear" onClick={() => acceptRequest(request.id)}>
@@ -178,7 +181,7 @@ const FriendRequests: React.FC<FriendRequestsProps> = ({ onBack }) => {
                                             <img src={`https://i.pravatar.cc/150?u=${request.addresseeId}`} alt="avatar" />
                                         </IonAvatar>
                                         <IonLabel>
-                                            <h2>Envoyée à l'utilisateur {request.addresseeId}</h2>
+                                            <h2>Envoyée à {request.addressee.username}</h2>
                                             <p>Envoyée le {formatDate(request.createdAt)}</p>
                                         </IonLabel>
                                         <IonButton fill="clear" onClick={() => cancelRequest(request.id)}>

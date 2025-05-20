@@ -14,6 +14,8 @@ export interface FriendRequest {
     id: number;
     requesterId: number;
     addresseeId: number;
+    requester: User;
+    addressee: User;
     status: 'pending' | 'accepted' | 'declined' | 'blocked';
     createdAt: Date;
 }

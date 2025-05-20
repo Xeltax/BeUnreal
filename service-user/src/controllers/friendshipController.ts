@@ -305,9 +305,47 @@ export const getPendingFriendRequests = async (req: Request, res: Response): Pro
             },
         });
 
+        const enrichedReceivedRequests = await Promise.all(receivedRequests.map(async (request) => {
+            const user = await User.findOne({
+                where: {
+                    id: request.requesterId,
+                },
+                attributes: ['id', 'username', 'profilePicture'],
+            });
+
+            const requestObj = request.get({ plain: true });
+            return {
+                ...requestObj,
+                requester: user ? {
+                    id: user.id,
+                    username: user.username,
+                    profilePicture: user.profilePicture,
+                } : null
+            };
+        }));
+
+        const enrichedSentRequests = await Promise.all(sentRequests.map(async (request) => {
+            const user = await User.findOne({
+                where: {
+                    id: request.addresseeId,
+                },
+                attributes: ['id', 'username', 'profilePicture'],
+            });
+
+            const requestObj = request.get({ plain: true });
+            return {
+                ...requestObj,
+                addressee: user ? {
+                    id: user.id,
+                    username: user.username,
+                    profilePicture: user.profilePicture,
+                } : null
+            };
+        }));
+
         res.status(200).json({
-            received: receivedRequests,
-            sent: sentRequests,
+            received: enrichedReceivedRequests,
+            sent: enrichedSentRequests,
         });
     } catch (error) {
         res.status(500).json({

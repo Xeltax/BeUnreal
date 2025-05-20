@@ -5,7 +5,6 @@ import ConversationParticipant from '../models/ConversationParticipant';
 import { Op } from 'sequelize';
 import sequelize from '../config/database';
 
-// Créer une conversation avec un utilisateur
 export const createOrGetConversation = async (req: Request, res: Response): Promise<void> => {
     const { userId } = req.body;
     const currentUserId = (req as any).userId;
@@ -16,36 +15,59 @@ export const createOrGetConversation = async (req: Request, res: Response): Prom
     }
 
     try {
-        // Vérifier si une conversation existe déjà entre ces deux utilisateurs
-        const existingConversation = await Conversation.findOne({
-            include: [
-                {
-                    model: ConversationParticipant,
-                    as: 'participants',
-                    where: {
-                        userId: {
-                            [Op.in]: [currentUserId, userId],
-                        },
-                    },
-                    required: true,
-                },
-            ],
+        const userConversations = await ConversationParticipant.findAll({
+            attributes: ['conversationId'],
             where: {
-                isGroup: false,
-            },
+                userId: currentUserId
+            }
         });
 
-        if (existingConversation) {
-            // Vérifier que c'est bien une conversation entre ces deux utilisateurs uniquement
-            const participantsCount = await ConversationParticipant.count({
+        const friendConversations = await ConversationParticipant.findAll({
+            attributes: ['conversationId'],
+            where: {
+                userId: userId
+            }
+        });
+
+        const userConvIds = userConversations.map(c => c.conversationId);
+        const friendConvIds = friendConversations.map(c => c.conversationId);
+        const commonConvIds = userConvIds.filter(id => friendConvIds.includes(id));
+
+        console.log('User conversations:', userConvIds);
+        console.log('Friend conversations:', friendConvIds);
+        console.log('Common conversations:', commonConvIds);
+
+        if (commonConvIds.length > 0) {
+            const existingConversation = await Conversation.findOne({
                 where: {
-                    conversationId: existingConversation.id,
+                    id: { [Op.in]: commonConvIds },
+                    isGroup: false,
                 },
             });
 
-            if (participantsCount === 2) {
-                res.status(200).json(existingConversation);
-                return;
+            if (existingConversation) {
+                const participantsCount = await ConversationParticipant.count({
+                    where: {
+                        conversationId: existingConversation.id,
+                    },
+                });
+
+                if (participantsCount === 2) {
+                    // Charger explicitement tous les participants
+                    const allParticipants = await ConversationParticipant.findAll({
+                        where: {
+                            conversationId: existingConversation.id,
+                        },
+                    });
+
+                    console.log('All participants:', allParticipants);
+
+                    // @ts-ignore
+                    existingConversation.setDataValue('participants', allParticipants);
+
+                    res.status(200).json(existingConversation);
+                    return;
+                }
             }
         }
 
@@ -151,21 +173,26 @@ export const createGroupConversation = async (req: Request, res: Response): Prom
     }
 };
 
-// Récupérer toutes les conversations d'un utilisateur
 export const getUserConversations = async (req: Request, res: Response): Promise<void> => {
     const currentUserId = (req as any).userId;
 
     try {
+        const userParticipations = await ConversationParticipant.findAll({
+            attributes: ['conversationId'],
+            where: {
+                userId: currentUserId,
+            },
+        });
+
+        const conversationIds = userParticipations.map(p => p.conversationId);
+
+        if (conversationIds.length === 0) {
+            res.status(200).json([]);
+            return;
+        }
+
         const conversations = await Conversation.findAll({
             include: [
-                {
-                    model: ConversationParticipant,
-                    as: 'participants',
-                    where: {
-                        userId: currentUserId,
-                    },
-                    required: true,
-                },
                 {
                     model: Message,
                     as: 'messages',
@@ -174,10 +201,29 @@ export const getUserConversations = async (req: Request, res: Response): Promise
                     required: false,
                 },
             ],
+            where: {
+                id: {
+                    [Op.in]: conversationIds
+                }
+            },
             order: [['lastMessageAt', 'DESC']],
         });
 
-        res.status(200).json(conversations);
+        const conversationsWithParticipants = await Promise.all(
+            conversations.map(async (conversation) => {
+                const participants = await ConversationParticipant.findAll({
+                    where: {
+                        conversationId: conversation.id
+                    }
+                });
+                // @ts-ignore
+                conversation.setDataValue('participants', participants);
+
+                return conversation;
+            })
+        );
+
+        res.status(200).json(conversationsWithParticipants);
     } catch (error) {
         res.status(500).json({
             message: 'Erreur serveur',

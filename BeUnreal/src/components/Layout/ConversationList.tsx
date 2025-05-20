@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     IonAvatar,
     IonBadge,
@@ -8,11 +8,13 @@ import {
     IonItem,
     IonLabel,
     IonList,
-    IonSkeletonText
+    IonSkeletonText,
+    IonModal, IonButton
 } from '@ionic/react';
 import { addOutline } from 'ionicons/icons';
 import { Conversation, Friend } from '../../services/chat';
 import { getProfilePicture, formatUsername } from '../../utils/userUtils';
+import NewConversation from './NewConversation';
 import '../../styles/ConversationList.css';
 
 interface ConversationListProps {
@@ -21,6 +23,7 @@ interface ConversationListProps {
     isLoading: boolean;
     currentUserId: number;
     onOpenChat: (conversation: Conversation) => void;
+    onConversationCreated: (conversationId: number, name?: string) => void;
 }
 
 const ConversationList: React.FC<ConversationListProps> = ({
@@ -28,8 +31,14 @@ const ConversationList: React.FC<ConversationListProps> = ({
                                                                friends,
                                                                isLoading,
                                                                currentUserId,
-                                                               onOpenChat
+                                                               onOpenChat,
+                                                               onConversationCreated
                                                            }) => {
+    const [showNewConversationModal, setShowNewConversationModal] = useState(false);
+
+    console.log("Conversations:", conversations);
+    console.log("Friends:", friends);
+
     const getLastMessage = (conversation: Conversation) => {
         if (conversation.messages && conversation.messages.length > 0) {
             const lastMessage = conversation.messages[0];
@@ -67,11 +76,11 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
     const getConversationName = (conversation: Conversation): string => {
         if (conversation.name) {
-            return conversation.name;
+            return "Groupe " + conversation.name;
         }
 
         if (!conversation.isGroup) {
-            const participant = conversation.participants.find(p => p.userId !== currentUserId);
+            const participant = conversation.participants?.find(p => p.userId !== currentUserId);
             if (participant) {
                 const friend = friends.find(f => f.id === participant.userId);
                 if (friend) {
@@ -85,7 +94,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
     const getConversationAvatar = (conversation: Conversation): string => {
         if (!conversation.isGroup) {
-            const participant = conversation.participants.find(p => p.userId !== currentUserId);
+            const participant = conversation.participants?.find(p => p.userId !== currentUserId);
             if (participant) {
                 const friend = friends.find(f => f.id === participant.userId);
                 if (friend) {
@@ -96,6 +105,11 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
         // Pour les groupes ou quand l'ami n'est pas trouvé
         return `https://i.pravatar.cc/150?u=${conversation.id}`;
+    };
+
+    const handleNewConversationCreated = (conversationId: number, name?: string) => {
+        setShowNewConversationModal(false);
+        onConversationCreated(conversationId, name);
     };
 
     return (
@@ -147,16 +161,26 @@ const ConversationList: React.FC<ConversationListProps> = ({
                             </div>
                             <h3>Aucune conversation trouvée</h3>
                             <p>Commencez à discuter avec vos amis</p>
+                            <IonButton onClick={() => setShowNewConversationModal(true)}>
+                                Nouvelle conversation
+                            </IonButton>
                         </div>
                     )}
                 </>
             )}
 
             <IonFab vertical="bottom" horizontal="end" slot="fixed">
-                <IonFabButton color="primary">
+                <IonFabButton color="primary" onClick={() => setShowNewConversationModal(true)}>
                     <IonIcon icon={addOutline} />
                 </IonFabButton>
             </IonFab>
+
+            <IonModal isOpen={showNewConversationModal} onDidDismiss={() => setShowNewConversationModal(false)}>
+                <NewConversation
+                    onBack={() => setShowNewConversationModal(false)}
+                    onConversationCreated={handleNewConversationCreated}
+                />
+            </IonModal>
         </div>
     );
 };

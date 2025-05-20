@@ -63,10 +63,13 @@ const FriendsList: React.FC = () => {
     const currentUserId = Number(authState.user?.id);
 
     useEffect(() => {
+        // Initialiser Socket.io lors du montage du composant
         ChatService.initializeSocket();
 
+        // Charger les données initiales
         loadInitialData();
 
+        // Nettoyer la connexion socket lors du démontage
         return () => {
             ChatService.disconnectSocket();
         };
@@ -162,6 +165,7 @@ const FriendsList: React.FC = () => {
     };
 
     const handleOpenExistingChat = (conversation: Conversation) => {
+        // Pour les conversations individuelles, trouver l'ami correspondant
         let name = conversation.name;
         if (!conversation.isGroup) {
             const participant = conversation.participants.find(p => p.userId !== currentUserId);
@@ -214,35 +218,31 @@ const FriendsList: React.FC = () => {
         }
     };
 
+    const handleConversationCreated = (conversationId: number, name?: string) => {
+        loadConversations().then(() => {
+            setSelectedConversation({
+                id: conversationId,
+                name: name
+            });
+            setShowChatModal(true);
+
+            // Changer l'onglet pour les conversations
+            setActiveTab('conversations');
+        });
+    };
+
     const showToastMessage = (message: string) => {
         setToastMessage(message);
         setShowToast(true);
     };
 
     const handleModalClose = () => {
+        // Recharger les données après la fermeture d'une modale
         loadInitialData();
     };
 
     const filteredFriends = friends.filter(friend => {
         return friend.username.toLowerCase().includes(searchText.toLowerCase());
-    });
-
-    const filteredConversations = conversations.filter(conversation => {
-        if (conversation.name) {
-            return conversation.name.toLowerCase().includes(searchText.toLowerCase());
-        }
-
-        if (!conversation.isGroup) {
-            const participant = conversation.participants.find(p => p.userId !== currentUserId);
-            if (participant) {
-                const friend = friends.find(f => f.id === participant.userId);
-                if (friend) {
-                    return friend.username.toLowerCase().includes(searchText.toLowerCase());
-                }
-            }
-        }
-
-        return false;
     });
 
     return (
@@ -355,11 +355,12 @@ const FriendsList: React.FC = () => {
                     ) : (
                         // Onglet conversations
                         <ConversationList
-                            conversations={filteredConversations}
+                            conversations={conversations}
                             friends={friends}
                             isLoading={isLoading}
                             currentUserId={currentUserId}
                             onOpenChat={handleOpenExistingChat}
+                            onConversationCreated={handleConversationCreated}
                         />
                     )}
 
