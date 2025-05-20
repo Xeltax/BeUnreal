@@ -16,7 +16,6 @@ export interface Story {
     mediaUrl: string,
     city?: string,
     createdAt: Date,
-
     isPublic: boolean,
     latitude?: number,
     longitude?: number,
@@ -26,6 +25,7 @@ const MapView: React.FC = () => {
     const [present] = useIonToast();
     const mapRef = useRef<L.Map | null>(null);
     const [stories, setStories] = useState<Story[]>([]);
+    const storiesRef = useRef<Story[]>([]);
     const [selectedStories, setSelectedStories] = useState<Story[]>([]);
 
     const fetchStories = async (latitude: number, longitude: number, radius: number) => {
@@ -45,14 +45,14 @@ const MapView: React.FC = () => {
             }
 
             const data = await res.json();
-
             setStories(data);
+            storiesRef.current = data; // mise à jour de la ref
         } catch (err) {
             console.error(err);
         }
     };
 
-    const initializeMap = (lat: number, lng: number) => {
+    const initializeMap = async (lat: number, lng: number) => {
         if (mapRef.current) {
             mapRef.current.remove();
         }
@@ -70,37 +70,36 @@ const MapView: React.FC = () => {
                 '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         }).addTo(map);
 
-        // Initial fetch
-        const loadStories = () => {
-            console.log("LOAD")
+        const loadStories = async () => {
             const bounds = map.getBounds();
             const radius = Math.floor(
                 (bounds.getSouthWest().distanceTo(bounds.getNorthEast()) / 2) * 1.6
             );
             const center = bounds.getCenter();
-            fetchStories(center.lat, center.lng, radius).finally();
+            await fetchStories(center.lat, center.lng, radius);
         };
 
-        map.on('moveend', loadStories);
-
-        map.on('click', (e: L.LeafletMouseEvent) => {
-            const { latlng } = e;
-
-            const found = stories
-                .filter((story) => {
-                    const dist = map.distance(latlng, L.latLng(story.latitude!, story.longitude!));
-                    return dist < 80;
-                })
-                .slice(0, 10);
-
-            if (found.length > 0) {
-                setSelectedStories(found);
-            }
-        });
-
-        setTimeout(() => {
+        setTimeout(async () => {
             map.invalidateSize();
-            loadStories(); // fetch initial
+            await loadStories(); // charge les stories avant d'ajouter les listeners
+
+            map.on('moveend', loadStories);
+
+            map.on('click', (e: L.LeafletMouseEvent) => {
+                const { latlng } = e;
+
+                const found = storiesRef.current
+                    .filter((story) => {
+                        if (!story.latitude || !story.longitude) return false;
+                        const dist = map.distance(latlng, L.latLng(story.latitude, story.longitude));
+                        return dist < 80;
+                    })
+                    .slice(0, 10);
+
+                if (found.length > 0) {
+                    setSelectedStories(found);
+                }
+            });
         }, 100);
     };
 
@@ -140,7 +139,7 @@ const MapView: React.FC = () => {
                     };
                 }
 
-                initializeMap(coords.latitude, coords.longitude);
+                await initializeMap(coords.latitude, coords.longitude);
             } catch (error) {
                 console.warn('Erreur de géolocalisation :', error);
                 await present({
@@ -150,7 +149,7 @@ const MapView: React.FC = () => {
                     color: 'warning',
                 });
 
-                initializeMap(49.182863, -0.370679);
+                await initializeMap(49.182863, -0.370679);
             }
         };
 
