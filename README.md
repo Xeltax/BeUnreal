@@ -1,5 +1,12 @@
 # BeUnreal - 4HYBD
 
+Membres du groupe :
+- Bosquet Ewen
+- Goudal Mathieu
+- Honore Clément
+
+## Présentation
+
 BeUnreal est une application mobile inspirée de BeReal permettant aux utilisateurs de partager des photos et des vidéos de manière authentique avec leurs amis.
 
 ## Fonctionnalités
