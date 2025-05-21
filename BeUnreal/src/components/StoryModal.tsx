@@ -55,13 +55,14 @@ const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, stories }) => 
 
                         const data = await res.json();
                         const ext = story.mediaUrl.split('.').pop()?.toLowerCase();
+                        const isVideo = ['mp4', 'webm', 'mov'].includes(ext || '');
 
                         if (!data?.url || !ext) return;
 
                         validStories.push({
                             id: story.id,
                             signedUrl: data.url,
-                            type: ext === 'mp4' ? 'video' : 'image',
+                            type: isVideo ? 'video' : 'image',
                             username: story.user?.username!,
                             city: story.city,
                         });

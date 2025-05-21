@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     IonActionSheet,
     IonAlert,
@@ -9,21 +9,22 @@ import {
     IonFabButton,
     IonGrid,
     IonIcon,
-    IonLoading,
+    IonModal,
     IonPage,
     IonRow,
     IonToolbar,
+    IonLoading,
 } from '@ionic/react';
-import {aperture, cameraReverse, close, flash, images} from 'ionicons/icons';
-import {Camera, CameraDirection, CameraResultType, CameraSource, Photo} from '@capacitor/camera';
-import {Capacitor} from '@capacitor/core';
-import {Geolocation} from '@capacitor/geolocation';
-import {useHistory} from 'react-router';
+import { aperture, cameraReverse, close, flash, images, videocam } from 'ionicons/icons';
+import { Camera, CameraDirection, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
+import { useHistory } from 'react-router';
+import {AuthService} from "../services/auth";
 
 const CameraView: React.FC = () => {
     const history = useHistory();
     const [photo, setPhoto] = useState<Photo | null>(null);
-    const [videoSource, setVideoSource] = useState<string | null>(null);
     const [flashMode, setFlashMode] = useState<'on' | 'off'>('off');
     const [timer, setTimer] = useState<number>(0);
     const [showActionSheet, setShowActionSheet] = useState(false);
@@ -31,9 +32,17 @@ const CameraView: React.FC = () => {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
     const [isFrontCamera, setIsFrontCamera] = useState(false);
+    const [showPhotoModal, setShowPhotoModal] = useState(false);
+    const [showPrivacyAlert, setShowPrivacyAlert] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [isVideoMode, setIsVideoMode] = useState(false);
+    const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
 
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const recordedChunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
@@ -46,17 +55,16 @@ const CameraView: React.FC = () => {
                 clearTimeout(timerRef.current);
             }
         };
-    }, []);
+    }, [isFrontCamera]);
 
     const startCamera = async () => {
         try {
             if (!Capacitor.isNativePlatform()) {
-                // Utilisation de l'API MediaDevices pour le web
                 const constraints = {
                     video: {
                         facingMode: isFrontCamera ? 'user' : 'environment',
                     },
-                    audio: false,
+                    audio: true,
                 };
 
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -74,9 +82,7 @@ const CameraView: React.FC = () => {
 
     const stopCamera = () => {
         if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach((track) => {
-                track.stop();
-            });
+            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
             mediaStreamRef.current = null;
         }
     };
@@ -100,35 +106,54 @@ const CameraView: React.FC = () => {
     };
 
     const takePicture = async () => {
-        if (timer > 0) {
-            setLoading(true);
-
-            timerRef.current = setTimeout(async () => {
-                await capturePhoto();
-                setLoading(false);
-            }, timer * 1000);
+        if (isVideoMode) {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
         } else {
-            await capturePhoto();
+            if (timer > 0) {
+                setLoading(true);
+                timerRef.current = setTimeout(async () => {
+                    await capturePhoto();
+                    setLoading(false);
+                }, timer * 1000);
+            } else {
+                await capturePhoto();
+            }
         }
     };
 
     const capturePhoto = async () => {
         try {
-            const photo = await Camera.getPhoto({
-                quality: 90,
-                allowEditing: false,
-                resultType: CameraResultType.DataUrl,
-                source: CameraSource.Camera,
-                direction: isFrontCamera ? CameraDirection.Front : CameraDirection.Rear,
-            });
+            if (videoRef.current && canvasRef.current) {
+                const video = videoRef.current;
+                const canvas = canvasRef.current;
+                const context = canvas.getContext('2d');
 
-            setPhoto(photo);
-            stopCamera(); // Arrêter la caméra une fois la photo prise
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
 
-            // Si on a une position, on peut l'associer à la photo
-            if (position) {
-                console.log('Photo prise avec la position:', position);
-                // Vous pouvez stocker ces informations ou les envoyer à votre API
+                context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const dataUrl = canvas.toDataURL('image/jpeg');
+
+                const newPhoto: Photo = {
+                    dataUrl,
+                    format: 'jpeg',
+                    saved: false,
+                    path: '',
+                    webPath: dataUrl,
+                };
+
+                setPhoto(newPhoto);
+                setShowPhotoModal(true);
+                stopCamera();
+
+                if (position) {
+                    console.log('Photo prise avec position:', position);
+                }
             }
         } catch (error) {
             console.error('Erreur lors de la prise de photo:', error);
@@ -136,37 +161,121 @@ const CameraView: React.FC = () => {
         }
     };
 
-    const startRecordingVideo = async () => {
-        // Cette fonction nécessite un plugin supplémentaire
-        // Comme l'application est centrée sur les photos et les vidéos courtes (10s max)
-        alert('Fonctionnalité d\'enregistrement vidéo en cours d\'implémentation');
+    const startRecording = () => {
+        const stream = mediaStreamRef.current;
+        if (!stream) return;
+
+        recordedChunksRef.current = [];
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+        recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                recordedChunksRef.current.push(event.data);
+            }
+        };
+
+        recorder.onstop = () => {
+            const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            setRecordedVideoUrl(url);
+            setShowPhotoModal(true);
+            stopCamera();
+        };
+
+        recorder.start();
+        mediaRecorderRef.current = recorder;
+        setIsRecording(true);
+    };
+
+    const stopRecording = () => {
+        mediaRecorderRef.current?.stop();
+        setIsRecording(false);
     };
 
     const discardCapture = () => {
         setPhoto(null);
-        setVideoSource(null);
+        if (recordedVideoUrl) {
+            URL.revokeObjectURL(recordedVideoUrl);
+            setRecordedVideoUrl(null);
+        }
+        setShowPhotoModal(false);
         startCamera();
     };
 
-    const saveCapture = async () => {
-        // Ici, vous pouvez implémenter la logique pour sauvegarder et partager la photo/vidéo
-        // Par exemple, envoyer à vos amis, ou publier comme "story"
-        alert('Photo/vidéo sauvegardée! Fonctionnalité de partage à implémenter.');
+    const validatePhoto = () => {
+        setShowPrivacyAlert(true);
+    };
 
-        // Retour à la caméra pour une nouvelle prise
-        discardCapture();
+    const handlePrivacyChoice = async (choice: string) => {
+        try {
+            const coordinates = await Geolocation.getCurrentPosition();
+            const latitude = coordinates.coords.latitude;
+            const longitude = coordinates.coords.longitude;
+
+            let fileBlob: Blob | null = null;
+            let fileName = '';
+
+            if (!isVideoMode && photo) {
+                // Photo : transformer dataUrl en Blob
+                const res = await fetch(photo.dataUrl || photo.webPath || '');
+                fileBlob = await res.blob();
+                fileName = `photo_${Date.now()}.jpeg`;
+            } else if (isVideoMode) {
+                // Vidéo : concaténer les chunks enregistrés en un blob
+                if (recordedChunksRef.current.length === 0) {
+                    throw new Error('Aucune vidéo enregistrée');
+                }
+                fileBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' }); // ou 'video/mp4' selon codec
+                fileName = `video_${Date.now()}.webm`; // adapte extension si besoin
+            }
+
+            if (!fileBlob) {
+                throw new Error('Aucun fichier média disponible pour l\'upload');
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileBlob, fileName);
+            formData.append('latitude', latitude.toString());
+            formData.append('longitude', longitude.toString());
+
+            const response = await fetch('http://localhost:3002/api/media/story', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    authorization: 'Bearer ' + AuthService.getToken()!
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur serveur: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Upload réussi:', result);
+
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde du média:', error);
+        } finally {
+            setShowPrivacyAlert(false);
+            discardCapture();
+            // Réinitialiser le buffer vidéo pour le prochain enregistrement
+            recordedChunksRef.current = [];
+            setRecordedVideoUrl(null);
+            setPhoto(null);
+        }
     };
 
     const selectFromGallery = async () => {
         try {
-            const photo = await Camera.getPhoto({
+            const selectedPhoto = await Camera.getPhoto({
                 quality: 90,
                 allowEditing: true,
                 resultType: CameraResultType.DataUrl,
                 source: CameraSource.Photos,
             });
 
-            setPhoto(photo);
+            setPhoto(selectedPhoto);
+            setShowPhotoModal(true);
         } catch (error) {
             console.error('Erreur lors de la sélection depuis la galerie:', error);
         }
@@ -175,17 +284,16 @@ const CameraView: React.FC = () => {
     return (
         <IonPage>
             <IonContent fullscreen>
-                {/* Vue de la caméra en direct */}
-                {!photo && !videoSource && (
+                {!photo && !recordedVideoUrl && (
                     <div style={{ position: 'relative', height: '100%' }}>
                         <video
                             ref={videoRef}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             autoPlay
                             playsInline
+                            muted
                         />
 
-                        {/* Boutons supérieurs */}
                         <IonToolbar color="clear" style={{ position: 'absolute', top: 0, width: '100%' }}>
                             <IonButtons slot="start">
                                 <IonButton onClick={() => history.goBack()}>
@@ -202,17 +310,18 @@ const CameraView: React.FC = () => {
                             </IonButtons>
                         </IonToolbar>
 
-                        {/* Boutons inférieurs */}
-                        <div
-                            style={{
-                                position: 'absolute',
-                                bottom: '20px',
-                                width: '100%',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}
-                        >
+                        <div style={{
+                            position: 'absolute',
+                            bottom: '20px',
+                            width: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                        }}>
+                            <IonButton fill="clear" onClick={() => setIsVideoMode(!isVideoMode)}>
+                                {isVideoMode ? 'Vidéo' : 'Photo'}
+                            </IonButton>
+
                             <IonGrid>
                                 <IonRow className="ion-align-items-center">
                                     <IonCol size="3" className="ion-text-center">
@@ -221,8 +330,8 @@ const CameraView: React.FC = () => {
                                         </IonButton>
                                     </IonCol>
                                     <IonCol size="6" className="ion-text-center">
-                                        <IonFabButton onClick={takePicture}>
-                                            <IonIcon icon={aperture} />
+                                        <IonFabButton onClick={takePicture} color={isRecording ? 'danger' : 'primary'}>
+                                            <IonIcon icon={isVideoMode ? videocam : aperture} />
                                         </IonFabButton>
                                     </IonCol>
                                     <IonCol size="3" className="ion-text-center">
@@ -236,98 +345,69 @@ const CameraView: React.FC = () => {
                     </div>
                 )}
 
-                {/* Affichage de la photo prise */}
-                {photo && (
-                    <div style={{ position: 'relative', height: '100%' }}>
-                        <img
-                            src={photo.dataUrl}
-                            alt="Capture"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-
-                        <IonToolbar color="clear" style={{ position: 'absolute', top: 0, width: '100%' }}>
-                            <IonButtons slot="start">
-                                <IonButton onClick={discardCapture}>
-                                    <IonIcon icon={close} color="light" />
-                                </IonButton>
-                            </IonButtons>
-                        </IonToolbar>
-
-                        <div
-                            style={{
+                <IonModal isOpen={showPhotoModal}>
+                    <IonContent>
+                        <div style={{ height: '100%', position: 'relative' }}>
+                            {photo && (
+                                <img
+                                    src={photo.dataUrl}
+                                    alt="Prévisualisation"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            )}
+                            {recordedVideoUrl && (
+                                <video
+                                    src={recordedVideoUrl}
+                                    controls
+                                    autoPlay
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            )}
+                            <div style={{
                                 position: 'absolute',
-                                bottom: '20px',
+                                bottom: 20,
                                 width: '100%',
                                 display: 'flex',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <IonButton expand="block" onClick={saveCapture}>
-                                Partager
-                            </IonButton>
-                        </div>
-                    </div>
-                )}
-
-                {/* Lecture de la vidéo enregistrée */}
-                {videoSource && (
-                    <div style={{ position: 'relative', height: '100%' }}>
-                        <video
-                            src={videoSource}
-                            controls
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-
-                        <IonToolbar color="clear" style={{ position: 'absolute', top: 0, width: '100%' }}>
-                            <IonButtons slot="start">
-                                <IonButton onClick={discardCapture}>
-                                    <IonIcon icon={close} color="light" />
+                                justifyContent: 'space-around',
+                            }}>
+                                <IonButton color="medium" onClick={discardCapture}>
+                                    Annuler
                                 </IonButton>
-                            </IonButtons>
-                        </IonToolbar>
-
-                        <div
-                            style={{
-                                position: 'absolute',
-                                bottom: '20px',
-                                width: '100%',
-                                display: 'flex',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <IonButton expand="block" onClick={saveCapture}>
-                                Partager
-                            </IonButton>
+                                <IonButton color="primary" onClick={validatePhoto}>
+                                    Valider
+                                </IonButton>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    </IonContent>
+                </IonModal>
 
-                {/* Sélecteur de minuterie */}
+                <IonAlert
+                    isOpen={showPrivacyAlert}
+                    header="Enregistrement"
+                    message="Souhaitez-vous enregistrer ce contenu comme public ou privé ?"
+                    buttons={[
+                        {
+                            text: 'Privé',
+                            handler: () => handlePrivacyChoice('privé'),
+                        },
+                        {
+                            text: 'Public',
+                            handler: () => handlePrivacyChoice('public'),
+                        },
+                    ]}
+                    onDidDismiss={() => setShowPrivacyAlert(false)}
+                />
+
                 <IonActionSheet
                     isOpen={showActionSheet}
                     onDidDismiss={() => setShowActionSheet(false)}
                     header="Minuterie"
                     buttons={[
-                        {
-                            text: 'Aucune',
-                            handler: () => setTimer(0),
-                        },
-                        {
-                            text: '3 secondes',
-                            handler: () => setTimer(3),
-                        },
-                        {
-                            text: '5 secondes',
-                            handler: () => setTimer(5),
-                        },
-                        {
-                            text: '10 secondes',
-                            handler: () => setTimer(10),
-                        },
-                        {
-                            text: 'Annuler',
-                            role: 'cancel',
-                        },
+                        { text: 'Aucune', handler: () => setTimer(0) },
+                        { text: '3 secondes', handler: () => setTimer(3) },
+                        { text: '5 secondes', handler: () => setTimer(5) },
+                        { text: '10 secondes', handler: () => setTimer(10) },
+                        { text: 'Annuler', role: 'cancel' },
                     ]}
                 />
 
@@ -345,6 +425,7 @@ const CameraView: React.FC = () => {
                     buttons={['OK']}
                 />
             </IonContent>
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
         </IonPage>
     );
 };
