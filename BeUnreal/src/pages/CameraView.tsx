@@ -128,37 +128,44 @@ const CameraView: React.FC = () => {
 
     const capturePhoto = async () => {
         try {
-            if (videoRef.current && canvasRef.current) {
-                const video = videoRef.current;
-                const canvas = canvasRef.current;
-                const context = canvas.getContext('2d');
+            if (Capacitor.isNativePlatform()) {
+                const cameraPhoto = await Camera.getPhoto({
+                    quality: 90,
+                    allowEditing: false,
+                    resultType: CameraResultType.DataUrl,
+                    source: CameraSource.Camera,
+                });
 
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-
-                context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                const dataUrl = canvas.toDataURL('image/jpeg');
-
-                const newPhoto: Photo = {
-                    dataUrl,
-                    format: 'jpeg',
-                    saved: false,
-                    path: '',
-                    webPath: dataUrl,
-                };
-
-                setPhoto(newPhoto);
+                setPhoto(cameraPhoto);
                 setShowPhotoModal(true);
-                stopCamera();
+            } else {
+                // Web : capture à partir du flux vidéo
+                if (videoRef.current && canvasRef.current) {
+                    const video = videoRef.current;
+                    const canvas = canvasRef.current;
+                    const context = canvas.getContext('2d');
 
-                if (position) {
-                    console.log('Photo prise avec position:', position);
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    const dataUrl = canvas.toDataURL('image/jpeg');
+                    const newPhoto: Photo = {
+                        dataUrl,
+                        format: 'jpeg',
+                        saved: false,
+                        path: '',
+                        webPath: dataUrl,
+                    };
+
+                    setPhoto(newPhoto);
+                    setShowPhotoModal(true);
+                    stopCamera();
                 }
             }
         } catch (error) {
-            console.error('Erreur lors de la prise de photo:', error);
-            setErrorMessage('Erreur lors de la prise de photo. Veuillez réessayer.');
+            console.error('Erreur lors de la capture:', error);
+            setErrorMessage('Impossible de prendre une photo');
         }
     };
 
