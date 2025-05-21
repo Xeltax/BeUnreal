@@ -60,8 +60,8 @@ export const PostPublicStory = async (req: Request, res: Response): Promise<void
             userId: (req as any).userId,
             mediaUrl: key,
             isPublic: true,
-            latitude: 0,
-            longitude: 0,
+            latitude: latitude,
+            longitude: longitude,
             createdAt: new Date()
         })
 
