@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     IonAvatar,
     IonBackButton,
@@ -14,10 +14,10 @@ import {
     IonTitle,
     IonToolbar
 } from '@ionic/react';
-import {imageOutline, sendOutline} from 'ionicons/icons';
-import ChatService, {Message} from '../../services/chat';
+import { imageOutline, sendOutline } from 'ionicons/icons';
+import ChatService, { Message } from '../../services/chat';
 import '../../styles/ChatView.css';
-import {AuthService} from "../../services/auth";
+import { AuthService } from "../../services/auth";
 
 interface ChatViewProps {
     conversationId: number;
@@ -26,12 +26,20 @@ interface ChatViewProps {
     conversationName?: string;
 }
 
+interface UserProfile {
+    id: number;
+    username: string;
+    profilePicture?: string;
+}
+
 const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, conversationName }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [typingUsers, setTypingUsers] = useState<number[]>([]);
     const [isTyping, setIsTyping] = useState(false);
+    const [userProfiles, setUserProfiles] = useState<Map<number, UserProfile>>(new Map());
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLIonContentElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -41,11 +49,9 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         loadMessages().finally();
 
         const messageListener = async (message: Message) => {
-            // Dédupliqué comme avant
             const isDuplicate = messages.some(m => m.id === message.id);
             if (isDuplicate) return;
 
-            // Gérer les doublons de l'utilisateur
             if (message.senderId === userId && (!message.id || message.id <= 0)) {
                 const duplicateByTime = messages.some(
                     m =>
@@ -56,7 +62,6 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
                 if (duplicateByTime) return;
             }
 
-            // S'il s'agit d'un média, enrichir avec l'URL
             let enrichedMessage = { ...message };
             if (message.type !== 'text' && message.mediaUrl) {
                 try {
@@ -80,16 +85,18 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
             if (message.senderId !== userId) {
                 ChatService.markAsRead(conversationId, message.id);
             }
+
+            await ensureUserProfile(message.senderId);
         };
 
         const typingListener = (typingUserId: number, isTyping: boolean) => {
             if (typingUserId === userId) return;
 
-            if (isTyping) {
-                setTypingUsers(prev => [...prev.filter(id => id !== typingUserId), typingUserId]);
-            } else {
-                setTypingUsers(prev => prev.filter(id => id !== typingUserId));
-            }
+            setTypingUsers(prev =>
+                isTyping
+                    ? [...prev.filter(id => id !== typingUserId), typingUserId]
+                    : prev.filter(id => id !== typingUserId)
+            );
         };
 
         ChatService.addMessageListener(conversationId, messageListener);
@@ -98,10 +105,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         return () => {
             ChatService.removeMessageListener(conversationId, messageListener);
             ChatService.removeTypingListener(conversationId, typingListener);
-
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         };
     }, [conversationId, userId]);
 
@@ -114,9 +118,9 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         try {
             const messagesList = await ChatService.getConversationMessages(conversationId);
 
-            // Pour tous les messages de type media, récupérer leur vraie URL
             const enrichedMessages = await Promise.all(
                 messagesList.map(async (msg) => {
+                    await ensureUserProfile(msg.senderId);
                     if (msg.type !== 'text' && msg.mediaUrl) {
                         try {
                             const res = await fetch(`http://localhost:3002/api/media/${msg.mediaUrl}`, {
@@ -126,12 +130,11 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
                             });
 
                             if (!res.ok) throw new Error('Erreur récupération média');
-
                             const data = await res.json();
                             return { ...msg, mediaUrl: data.url };
                         } catch (e) {
                             console.error('Erreur chargement media :', msg.mediaUrl, e);
-                            return msg; // on garde le message sans l'url enrichie
+                            return msg;
                         }
                     } else {
                         return msg;
@@ -147,6 +150,25 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         }
     };
 
+    const ensureUserProfile = async (senderId: number) => {
+        if (userProfiles.has(senderId)) return;
+
+        try {
+            const res = await fetch(`http://localhost:3000/api/users/internal/profile/${senderId}`, {
+                headers: {
+                    Authorization: `Bearer ${AuthService.getToken()!}`
+                }
+            });
+
+            if (!res.ok) throw new Error(`Erreur lors de la récupération du profil utilisateur ${senderId}`);
+
+            const data: UserProfile = await res.json();
+            setUserProfiles(prev => new Map(prev).set(senderId, data));
+        } catch (e) {
+            console.error('Erreur récupération utilisateur :', senderId, e);
+        }
+    };
+
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
             contentRef.current?.scrollToBottom(300);
@@ -155,7 +177,6 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
 
     const handleSendMessage = () => {
         if (!newMessage.trim()) return;
-
         setNewMessage('');
 
         if (isTyping) {
@@ -178,11 +199,8 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         const file = event.target.files?.[0];
         if (!file) return;
 
-        console.log('Fichier sélectionné :', file.name, file.type);
-
         const fileType = file.type.startsWith('image') ? 'image' :
-            file.type.startsWith('video') ? 'video' :
-                null;
+            file.type.startsWith('video') ? 'video' : null;
 
         if (!fileType) {
             console.warn('Type de fichier non supporté :', file.type);
@@ -190,12 +208,12 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         }
 
         try {
-            const media: { key: string } = await uploadFile(file); // tu as déjà cette fonction
-            ChatService.sendMessage(conversationId, '', fileType, media.key); // ou media.filename si tu gères via GET /api/media/:filename
+            const media: { key: string } = await uploadFile(file);
+            ChatService.sendMessage(conversationId, '', fileType, media.key);
         } catch (err) {
             console.error('Erreur lors de l\'envoi du fichier', err);
         } finally {
-            event.target.value = ''; // Réinitialise l’input pour permettre une sélection du même fichier à nouveau
+            event.target.value = '';
         }
     };
 
@@ -203,24 +221,17 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         const formData = new FormData();
         formData.append('file', file);
 
-        try {
-            const response = await fetch('http://localhost:3002/api/media', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${AuthService.getToken()!}` // adapte selon où tu stockes le token
-                },
-                body: formData
-            });
+        const response = await fetch('http://localhost:3002/api/media', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${AuthService.getToken()!}`
+            },
+            body: formData
+        });
 
-            if (!response.ok) {
-                throw new Error('Erreur lors de l\'upload');
-            }
+        if (!response.ok) throw new Error('Erreur lors de l\'upload');
 
-            return await response.json();
-        } catch (error) {
-            console.error('Erreur upload fichier :', error);
-            throw error;
-        }
+        return await response.json();
     };
 
     const handleTextareaChange = (e: any) => {
@@ -234,10 +245,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
             ChatService.sendTypingStatus(conversationId, shouldBeTyping);
         }
 
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-            typingTimeoutRef.current = null;
-        }
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
         if (shouldBeTyping) {
             typingTimeoutRef.current = setTimeout(() => {
@@ -253,12 +261,17 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
+    const getAvatarUrl = (senderId: number): string => {
+        const profile = userProfiles.get(senderId);
+        return profile?.profilePicture || `https://i.pravatar.cc/150?u=${senderId}`;
+    };
+
     return (
         <>
             <IonHeader>
                 <IonToolbar>
                     <IonButtons slot="start">
-                        <IonBackButton defaultHref="#"  />
+                        <IonBackButton defaultHref="#" />
                     </IonButtons>
                     <IonTitle>{conversationName || 'Discussion'}</IonTitle>
                 </IonToolbar>
@@ -278,7 +291,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
                             >
                                 {message.senderId !== userId && (
                                     <IonAvatar className="message-avatar">
-                                        <img src={`https://i.pravatar.cc/150?u=${message.senderId}`} alt="avatar" />
+                                        <img src={getAvatarUrl(message.senderId)} alt="avatar" />
                                     </IonAvatar>
                                 )}
                                 <div className="message-bubble">
