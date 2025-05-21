@@ -62,7 +62,7 @@ User.init(
             allowNull: false,
         },
         profilePicture: {
-            type: DataTypes.STRING,
+            type: DataTypes.TEXT,
         },
         bio: {
             type: DataTypes.STRING,
