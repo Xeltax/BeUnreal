@@ -7,6 +7,7 @@ import {QueryTypes} from "sequelize";
 
 dotenv.config()
 const BUCKET_NAME = process.env.BUCKET_NAME ?? "media";
+const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
 
 export const PostMedia = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -151,7 +152,7 @@ export const GetStoriesAround = async (req: Request, res: Response): Promise<voi
 export const GetMedia = async (req: Request, res: Response): Promise<void> => {
     try {
         const key = req.params.key;
-        const url = await getPresignedUrl(BUCKET_NAME, key, 600);
+        const url = await getPresignedUrl(BUCKET_NAME, key, ONE_YEAR_IN_SECONDS);
         res.json({ url });
     } catch (error) {
         console.error(error);
