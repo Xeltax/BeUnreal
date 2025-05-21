@@ -8,6 +8,11 @@ const config: CapacitorConfig = {
     Geolocation: {
       permissions: ['location']
     }
+  },
+  server: {
+    url: 'http://192.168.1.100:5173',
+    cleartext: true,
+    allowNavigation: ['192.168.1.100']
   }
 };
 
