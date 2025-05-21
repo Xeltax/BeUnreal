@@ -8,6 +8,7 @@ import 'leaflet.heat';
 import StoryModal from "../components/StoryModal";
 import {User} from "../types";
 import {AuthService} from "../services/auth";
+import {MEDIAS_URL} from "../utils/env";
 
 export interface Story {
     id: number,
@@ -30,7 +31,7 @@ const MapView: React.FC = () => {
 
     const fetchStories = async (latitude: number, longitude: number, radius: number) => {
         try {
-            const res = await fetch('http://localhost:3002/api/media/stories', {
+            const res = await fetch(`${MEDIAS_URL}/api/media/stories`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

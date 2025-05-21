@@ -21,6 +21,7 @@ import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { useHistory } from 'react-router';
 import {AuthService} from "../services/auth";
+import {MEDIAS_URL} from "../utils/env";
 
 const CameraView: React.FC = () => {
     const history = useHistory();
@@ -238,7 +239,7 @@ const CameraView: React.FC = () => {
             formData.append('latitude', latitude.toString());
             formData.append('longitude', longitude.toString());
 
-            const response = await fetch('http://localhost:3002/api/media/story', {
+            const response = await fetch(`${MEDIAS_URL}/api/media/story`, {
                 method: 'POST',
                 body: formData,
                 headers: {

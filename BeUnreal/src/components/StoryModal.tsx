@@ -19,6 +19,7 @@ import {
 } from 'ionicons/icons';
 import {AuthService} from "../services/auth";
 import {Story} from '../pages/MapView'
+import {MEDIAS_URL} from "../utils/env";
 
 interface ResolvedStory {
     id: number;
@@ -46,7 +47,7 @@ const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, stories }) => 
             await Promise.all(
                 stories.map(async (story) => {
                     try {
-                        const res = await fetch(`http://localhost:3002/api/media/${story.mediaUrl}`, {
+                        const res = await fetch(`${MEDIAS_URL}/api/media/${story.mediaUrl}`, {
                             headers: {
                                 authorization: 'Bearer ' + AuthService.getToken()!
                             }

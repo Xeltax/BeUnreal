@@ -1,5 +1,6 @@
-import { io, Socket } from 'socket.io-client';
+import {io, Socket} from 'socket.io-client';
 import axios from 'axios';
+import {MESSAGES_URL} from "../utils/env";
 
 export interface Friend {
     id: number;
@@ -30,7 +31,7 @@ export interface Message {
 class ChatService {
     private static instance: ChatService;
     private socket: Socket | null = null;
-    private API_URL = 'http://localhost:3001/api/messages';
+    private API_URL = `${MESSAGES_URL}/api/messages`;
     private messageListeners: Map<number, ((message: Message) => void)[]> = new Map();
     private typingListeners: Map<number, ((userId: number, isTyping: boolean) => void)[]> = new Map();
 
@@ -59,7 +60,7 @@ class ChatService {
             this.socket.disconnect();
         }
 
-        this.socket = io('http://localhost:3001', {
+        this.socket = io(MESSAGES_URL, {
             auth: { token },
             reconnection: true,
             reconnectionAttempts: 5,

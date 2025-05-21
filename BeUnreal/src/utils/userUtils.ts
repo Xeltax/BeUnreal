@@ -1,5 +1,5 @@
-import { Friend } from '../types';
-import { User } from '../types';
+import {Friend} from '../types';
+import {MESSAGES_URL} from "./env";
 
 export interface UserProfile {
     id: number;
@@ -20,7 +20,7 @@ export const getProfilePicture = (user: Friend): string => {
             return user.profilePicture;
         }
         // Sinon, construire l'URL complète (selon ton implémentation)
-        return `http://localhost:3001/uploads/${user.profilePicture}`;
+        return `${MESSAGES_URL}/uploads/${user.profilePicture}`;
     }
 
     // Utiliser un avatar de placeholder avec l'ID de l'utilisateur pour la consistance

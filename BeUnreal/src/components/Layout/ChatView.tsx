@@ -18,6 +18,7 @@ import { imageOutline, sendOutline } from 'ionicons/icons';
 import ChatService, { Message } from '../../services/chat';
 import '../../styles/ChatView.css';
 import { AuthService } from "../../services/auth";
+import {MEDIAS_URL, USERS_URL} from "../../utils/env";
 
 interface ChatViewProps {
     conversationId: number;
@@ -65,7 +66,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
             let enrichedMessage = { ...message };
             if (message.type !== 'text' && message.mediaUrl) {
                 try {
-                    const res = await fetch(`http://localhost:3002/api/media/${message.mediaUrl}`, {
+                    const res = await fetch(`${MEDIAS_URL}/api/media/${message.mediaUrl}`, {
                         headers: {
                             Authorization: `Bearer ${AuthService.getToken()!}`,
                         },
@@ -123,7 +124,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
                     await ensureUserProfile(msg.senderId);
                     if (msg.type !== 'text' && msg.mediaUrl) {
                         try {
-                            const res = await fetch(`http://localhost:3002/api/media/${msg.mediaUrl}`, {
+                            const res = await fetch(`${MEDIAS_URL}/api/media/${msg.mediaUrl}`, {
                                 headers: {
                                     Authorization: `Bearer ${AuthService.getToken()!}`
                                 }
@@ -154,7 +155,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         if (userProfiles.has(senderId)) return;
 
         try {
-            const res = await fetch(`http://localhost:3000/api/users/internal/profile/${senderId}`, {
+            const res = await fetch(`${USERS_URL}/api/users/internal/profile/${senderId}`, {
                 headers: {
                     Authorization: `Bearer ${AuthService.getToken()!}`
                 }
@@ -221,7 +222,7 @@ const ChatView: React.FC<ChatViewProps> = ({ conversationId, userId, onBack, con
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('http://localhost:3002/api/media', {
+        const response = await fetch(`${USERS_URL}/api/media`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${AuthService.getToken()!}`

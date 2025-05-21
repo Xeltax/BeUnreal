@@ -1,7 +1,8 @@
 import axios from 'axios';
 import {Friend} from "../types";
+import {USERS_URL} from "../utils/env";
 
-const API_URL = 'http://localhost:3000/api/friends';
+const API_URL = `${USERS_URL}/api/friends`;
 
 export interface User {
     id: number;
